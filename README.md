@@ -1,2 +1,19 @@
-# J-REIT-Intelligence
-J-REIT Analysis Platform
+# J-REIT Intelligence v0.1
+
+地図・検索・物件詳細・CSV出力を確認するための静的Webアプリです。
+
+## 重要
+
+収録データはすべて架空のデモデータです。審査・投資判断には利用できません。
+
+## ローカル起動
+
+このフォルダで以下を実行します。
+
+```bash
+python3 -m http.server 8000
+```
+
+ブラウザで <http://localhost:8000> を開きます。終了はターミナルで `Control + C` です。
+
+地図タイルとLeafletをインターネットから取得するため、表示にはネット接続が必要です。
