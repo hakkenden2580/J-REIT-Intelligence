@@ -7,7 +7,7 @@ const pct=n=>n==null?"—":`${Number(n).toFixed(1)}%`;
 const area=n=>n==null?"—":`${Number(n).toLocaleString("ja-JP")}㎡`;
 const text=n=>n==null?"—":Number(n).toLocaleString("ja-JP");
 const esc=s=>String(s??"").replace(/[&<>'"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;","'":"&#39;",'"':"&quot;"}[c]));
-const region=document.querySelector("#region");
+const reitFilter=document.querySelector("#reit"),typeFilter=document.querySelector("#type"),region=document.querySelector("#region");
 const metrics={
   cap:{label:"直接還元利回り（CR）",short:"CR",format:pct,color:"#2563eb"},
   noi:{label:"NOI（当期）",short:"NOI",format:yen,color:"#059669"},
@@ -23,7 +23,9 @@ async function loadData(){
   visible=[...properties];
   document.querySelector("#dataset").textContent=payload.meta.label;
   document.querySelector("#dataset").classList.toggle("demo",payload.meta.dataset==="demo");
-  [...new Set(properties.map(x=>x.region).filter(Boolean))].forEach(x=>region.add(new Option(x,x)));
+  [...new Set(properties.map(x=>x.reit).filter(Boolean))].sort().forEach(x=>reitFilter.add(new Option(x,x)));
+  [...new Set(properties.map(x=>x.type).filter(Boolean))].sort().forEach(x=>typeFilter.add(new Option(x,x)));
+  [...new Set(properties.map(x=>x.region).filter(Boolean))].sort().forEach(x=>region.add(new Option(x,x)));
   render();
   const coords=properties.filter(p=>p.lat!=null&&p.lng!=null);
   if(coords.length)map.fitBounds(coords.map(p=>[p.lat,p.lng]),{padding:[30,30]});
@@ -48,7 +50,8 @@ function selectProperty(p){
   selected=p;
   const src=p.source;
   const evidence=src?Object.entries(src.cells||{}).filter(([,v])=>v).map(([k,v])=>`<li><code>${esc(k)}</code> ${esc(v)}</li>`).join(""):"";
-  const metricOptions=Object.entries(metrics).map(([key,item])=>`<option value="${key}">${item.label}</option>`).join("");
+  const defaultMetric=Object.keys(metrics).find(key=>p.periods.some(period=>period[key]!=null))||"appraisal";
+  const metricOptions=Object.entries(metrics).map(([key,item])=>`<option value="${key}"${key===defaultMetric?" selected":""}>${item.label}</option>`).join("");
   const comparableCards=comparablesFor(p).map(item=>`<button class="comparable" data-property-id="${esc(item.property.id)}"><span class="score">類似度 ${item.score}</span><b>${esc(item.property.name)}</b><small>${item.distance==null?"距離不明":`${item.distance.toFixed(1)}km`}・CR ${pct(item.property.cap)}・${area(item.property.leasable_area)}</small></button>`).join("");
   document.querySelector("#detail").innerHTML=`<h2>${esc(p.name)}</h2><div class="address">${esc(p.address)}</div><div><span class="pill">${esc(p.type)}</span>${p.geocode?.quality==="automatic"?'<span class="pill neutral">座標：自動取得</span>':""}</div><div class="metrics"><div class="metric"><span>取得価格</span><b>${yen(p.price)}</b></div><div class="metric"><span>鑑定評価額</span><b>${yen(p.appraisal)}</b></div><div class="metric"><span>直接還元利回り（CR）</span><b>${pct(p.cap)}</b></div><div class="metric"><span>稼働率</span><b>${pct(p.occupancy)}</b></div><div class="metric"><span>NOI（当期）</span><b>${yen(p.noi)}</b></div><div class="metric"><span>期末簿価</span><b>${yen(p.book_value)}</b></div><div class="metric"><span>賃貸可能面積</span><b>${area(p.leasable_area)}</b></div><div class="metric"><span>テナント数</span><b>${text(p.tenants)}</b></div></div><section class="analysis"><div class="analysis-heading"><div><span class="eyebrow">HISTORY</span><h3>物件データの推移</h3></div><select id="historyMetric" aria-label="推移指標">${metricOptions}</select></div><canvas id="historyChart" aria-label="物件データ推移グラフ"></canvas><div id="historySummary"></div></section><section class="analysis"><div class="analysis-heading"><div><span class="eyebrow">COMPARABLES</span><h3>類似物件 上位5件</h3></div></div><p class="method">距離35%、面積25%、取得価格15%、CR15%、稼働率10%で算出</p><div class="comparable-list">${comparableCards||'<p class="empty">比較できる物件がありません。</p>'}</div></section>${src?`<div class="source"><b>出典</b><p>${esc(src.document)}・${esc(src.period)}</p><a href="${esc(src.url)}" target="_blank" rel="noopener">公式IRライブラリを開く</a><details><summary>最新期のセル位置</summary><ul>${evidence}</ul></details></div>`:'<div class="source">デモデータ（架空）。実データとして利用しないでください。</div>'}`;
   const selector=document.querySelector("#historyMetric");selector.onchange=()=>drawHistory(p,selector.value);drawHistory(p,selector.value);
@@ -79,14 +82,14 @@ function drawHistory(p,metricKey){
 }
 
 function render(){
-  const q=document.querySelector("#search").value.toLowerCase(),r=region.value;
-  visible=properties.filter(p=>(!r||p.region===r)&&(`${p.name} ${p.address} ${p.reit}`.toLowerCase().includes(q)));
+  const q=document.querySelector("#search").value.toLowerCase(),reit=reitFilter.value,type=typeFilter.value,r=region.value;
+  visible=properties.filter(p=>(!reit||p.reit===reit)&&(!type||p.type===type)&&(!r||p.region===r)&&(`${p.name} ${p.address} ${p.reit}`.toLowerCase().includes(q)));
   document.querySelector("#count").textContent=visible.length;
   document.querySelector("#list").innerHTML=visible.map(p=>`<div class="item${selected?.id===p.id?" active":""}" data-id="${esc(p.id)}"><b>${esc(p.name)}</b><small>${esc(p.address)}</small><br><span class="pill">${esc(p.region||p.type)}・CR ${pct(p.cap)}</span></div>`).join("");
   markers.clearLayers();visible.filter(p=>p.lat!=null&&p.lng!=null).forEach(p=>L.marker([p.lat,p.lng]).addTo(markers).bindTooltip(esc(p.name)).on("click",()=>selectProperty(p)));
   document.querySelectorAll(".item").forEach(el=>el.onclick=()=>selectProperty(properties.find(p=>p.id===el.dataset.id)));
 }
-document.querySelector("#search").oninput=render;region.onchange=render;
+document.querySelector("#search").oninput=render;reitFilter.onchange=render;typeFilter.onchange=render;region.onchange=render;
 document.querySelector("#export").onclick=()=>{if(!visible.length)return;const keys=["id","reit_code","reit","name","type","region","address","lat","lng","price","book_value","appraisal","cap","discount_rate","terminal_cap_rate","occupancy","noi","leasable_area","leased_area","tenants"];const csv=[keys.join(","),...visible.map(p=>keys.map(k=>`"${String(p[k]??"").replaceAll('"','""')}"`).join(","))].join("\n");const a=document.createElement("a");a.href=URL.createObjectURL(new Blob(["\ufeff"+csv],{type:"text/csv"}));a.download="jreit-properties.csv";a.click();URL.revokeObjectURL(a.href)};
 window.addEventListener("resize",()=>{if(selected){const metric=document.querySelector("#historyMetric");if(metric)drawHistory(selected,metric.value)}});
 loadData().catch(err=>{document.querySelector("#dataset").textContent="読込エラー";document.querySelector("#detail").innerHTML=`<p class="error">データを読み込めませんでした。${esc(err.message)}</p>`});

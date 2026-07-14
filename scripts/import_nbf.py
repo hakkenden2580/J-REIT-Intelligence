@@ -296,6 +296,7 @@ def main() -> int:
               "history_points": {str(length): sum(len(item["periods"]) == length for item in properties)
                                  for length in range(1, len(common["periods"]) + 1)},
               "period_reports": period_reports, "issues": issues}
+    (data_dir / "nbf-properties.json").write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
     (data_dir / "properties.json").write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
     (data_dir / "import-report.json").write_text(json.dumps(report, ensure_ascii=False, indent=2), encoding="utf-8")
     print(json.dumps(report, ensure_ascii=False, indent=2))

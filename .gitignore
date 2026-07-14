@@ -4,5 +4,9 @@ __pycache__/
 sources/raw/
 data/properties.json
 data/import-report.json
+data/nbf-properties.json
+data/jre-properties.json
+data/glp-properties.json
+data/all-import-report.json
 data/geocode-cache.json
 work/

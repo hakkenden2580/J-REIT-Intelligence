@@ -15,5 +15,25 @@
       {"period_no":41,"period":"第41期（2021年12月期）","as_of_date":"2021-12-31","download_url":"https://www.nbf-m.com/file/ir_library_term-66334691865001d7b515fd4700332b17bb2e10a8.xlsx","local_filename":"nbf-41-2021-12.xlsx"},
       {"period_no":40,"period":"第40期（2021年6月期）","as_of_date":"2021-06-30","download_url":"https://www.nbf-m.com/file/ir_library_term-b535b382ec8d26126611818f9b0c704a05709035.xlsx","local_filename":"nbf-40-2021-06.xlsx"}
     ]
+  },
+  "jre": {
+    "reit_code": "8952",
+    "reit_name": "ジャパンリアルエステイト投資法人",
+    "period": "第49期（2026年3月期）",
+    "period_no": 49,
+    "as_of_date": "2026-03-31",
+    "library_url": "https://www.j-re.co.jp/ja_cms/ir/library.html",
+    "download_url": "https://www.j-re.co.jp/file/portfolio_statement_excel-eb04ad8c3bd2b77b7e6f436eab4b677f27b99dc3.xlsx",
+    "local_filename": "jre-49-2026-03.xlsx"
+  },
+  "glp": {
+    "reit_code": "3281",
+    "reit_name": "GLP投資法人",
+    "period": "第28期（2026年2月期）",
+    "period_no": 28,
+    "as_of_date": "2026-02-28",
+    "library_url": "https://www.glpjreit.com/ja/ir/library.html",
+    "download_url": "https://www.glpjreit.com/file/ir_library_term-cf6aebe672ba405eae8b44683ccb18ef9a1a6b4c.xlsx",
+    "local_filename": "glp-28-2026-02.xlsx"
   }
 }
