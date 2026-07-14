@@ -2,11 +2,18 @@
   "nbf": {
     "reit_code": "8951",
     "reit_name": "日本ビルファンド投資法人",
-    "period": "第49期（2025年12月期）",
-    "as_of_date": "2025-12-31",
-    "document_title": "第49期 物件毎データ",
     "library_url": "https://www.nbf-m.com/nbf/ir/library.html",
-    "download_url": "https://www.nbf-m.com/file/ir_library_term-791ed84cf78ad75825866fd1fbe1a347eb005e84.xlsx",
-    "local_filename": "nbf-2025-12.xlsx"
+    "periods": [
+      {"period_no":49,"period":"第49期（2025年12月期）","as_of_date":"2025-12-31","download_url":"https://www.nbf-m.com/file/ir_library_term-791ed84cf78ad75825866fd1fbe1a347eb005e84.xlsx","local_filename":"nbf-49-2025-12.xlsx"},
+      {"period_no":48,"period":"第48期（2025年6月期）","as_of_date":"2025-06-30","download_url":"https://www.nbf-m.com/file/ir_library_term-bc8ac608bde5493a2ed0c90e7e04edea117c22ad.xlsx","local_filename":"nbf-48-2025-06.xlsx"},
+      {"period_no":47,"period":"第47期（2024年12月期）","as_of_date":"2024-12-31","download_url":"https://www.nbf-m.com/file/ir_library_term-49e6eeb741af688e6fe9b28b2a04f356ea0ce88d.xlsx","local_filename":"nbf-47-2024-12.xlsx"},
+      {"period_no":46,"period":"第46期（2024年6月期）","as_of_date":"2024-06-30","download_url":"https://www.nbf-m.com/file/ir_library_term-f86cc7c8307107bed58234d0364d935f3bb42b6f.xlsx","local_filename":"nbf-46-2024-06.xlsx"},
+      {"period_no":45,"period":"第45期（2023年12月期）","as_of_date":"2023-12-31","download_url":"https://www.nbf-m.com/file/ir_library_term-bc0121d71f181da41aaad46cac496b9995c16668.xlsx","local_filename":"nbf-45-2023-12.xlsx"},
+      {"period_no":44,"period":"第44期（2023年6月期）","as_of_date":"2023-06-30","download_url":"https://www.nbf-m.com/file/ir_library_term-30b4a5207cea5d9504d01c27c00b2076d8705049.xlsx","local_filename":"nbf-44-2023-06.xlsx"},
+      {"period_no":43,"period":"第43期（2022年12月期）","as_of_date":"2022-12-31","download_url":"https://www.nbf-m.com/file/ir_library_term-8ebb565b5a494ba1e9511cad9ae5492bd80ad6b8.xlsx","local_filename":"nbf-43-2022-12.xlsx"},
+      {"period_no":42,"period":"第42期（2022年6月期）","as_of_date":"2022-06-30","download_url":"https://www.nbf-m.com/file/ir_library_term-b029f0f988aa091226ba8f9dcc4420401f2de455.xlsx","local_filename":"nbf-42-2022-06.xlsx"},
+      {"period_no":41,"period":"第41期（2021年12月期）","as_of_date":"2021-12-31","download_url":"https://www.nbf-m.com/file/ir_library_term-66334691865001d7b515fd4700332b17bb2e10a8.xlsx","local_filename":"nbf-41-2021-12.xlsx"},
+      {"period_no":40,"period":"第40期（2021年6月期）","as_of_date":"2021-06-30","download_url":"https://www.nbf-m.com/file/ir_library_term-b535b382ec8d26126611818f9b0c704a05709035.xlsx","local_filename":"nbf-40-2021-06.xlsx"}
+    ]
   }
 }
