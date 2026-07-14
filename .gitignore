@@ -1,0 +1,7 @@
+.DS_Store
+sources/raw/
+data/properties.json
+data/import-report.json
+data/geocode-cache.json
+work/
+

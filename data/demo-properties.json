@@ -1,0 +1,16 @@
+{
+  "meta": {
+    "dataset": "demo",
+    "label": "架空データ",
+    "as_of_date": null,
+    "notice": "画面確認用の架空データです。"
+  },
+  "properties": [
+    {"id":"DEMO-001","name":"丸の内サンプルビル","reit":"デモ投資法人","reit_code":"DEMO","type":"オフィス","address":"東京都千代田区丸の内","lat":35.6812,"lng":139.7671,"price":42000,"book_value":40000,"cap":3.4,"discount_rate":3.2,"terminal_cap_rate":3.5,"occupancy":99.2,"noi":1530,"appraisal":46800,"leasable_area":25000,"leased_area":24800,"tenants":20,"source":null},
+    {"id":"DEMO-002","name":"新宿サンプルタワー","reit":"デモ投資法人","reit_code":"DEMO","type":"オフィス","address":"東京都新宿区西新宿","lat":35.6896,"lng":139.6917,"price":31500,"book_value":30000,"cap":3.7,"discount_rate":3.5,"terminal_cap_rate":3.8,"occupancy":98.5,"noi":1240,"appraisal":34200,"leasable_area":18000,"leased_area":17730,"tenants":18,"source":null},
+    {"id":"DEMO-003","name":"品川サンプルレジデンス","reit":"デモ住宅投資法人","reit_code":"DEMO","type":"住宅","address":"東京都港区港南","lat":35.6285,"lng":139.7387,"price":12800,"book_value":12000,"cap":3.8,"discount_rate":3.6,"terminal_cap_rate":3.9,"occupancy":97.8,"noi":520,"appraisal":13900,"leasable_area":9000,"leased_area":8802,"tenants":120,"source":null},
+    {"id":"DEMO-004","name":"流山サンプル物流センター","reit":"デモ物流投資法人","reit_code":"DEMO","type":"物流","address":"千葉県流山市","lat":35.8563,"lng":139.9029,"price":24600,"book_value":23500,"cap":4.1,"discount_rate":3.9,"terminal_cap_rate":4.2,"occupancy":100,"noi":1090,"appraisal":26700,"leasable_area":50000,"leased_area":50000,"tenants":4,"source":null},
+    {"id":"DEMO-005","name":"横浜サンプルモール","reit":"デモ商業投資法人","reit_code":"DEMO","type":"商業","address":"神奈川県横浜市西区","lat":35.4658,"lng":139.6223,"price":19800,"book_value":19000,"cap":4.3,"discount_rate":4.1,"terminal_cap_rate":4.4,"occupancy":98.1,"noi":920,"appraisal":20700,"leasable_area":22000,"leased_area":21582,"tenants":45,"source":null},
+    {"id":"DEMO-006","name":"大阪サンプルホテル","reit":"デモホテル投資法人","reit_code":"DEMO","type":"ホテル","address":"大阪府大阪市北区","lat":34.7055,"lng":135.4983,"price":22100,"book_value":21000,"cap":4.5,"discount_rate":4.3,"terminal_cap_rate":4.6,"occupancy":92.4,"noi":1040,"appraisal":23500,"leasable_area":16000,"leased_area":14784,"tenants":1,"source":null}
+  ]
+}
