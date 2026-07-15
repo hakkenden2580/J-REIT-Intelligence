@@ -18,6 +18,7 @@ FORBIDDEN_FILES = {
     "data/all-import-report.json",
     "data/geocode-cache.json",
 }
+SOURCE_DOCUMENT_SUFFIXES = {".pdf", ".xls", ".xlsx"}
 
 
 def tracked_files() -> list[str]:
@@ -28,7 +29,10 @@ def tracked_files() -> list[str]:
 def violations(files: list[str]) -> list[str]:
     return sorted(
         path for path in files
-        if path in FORBIDDEN_FILES or path.startswith(FORBIDDEN_PREFIXES)
+        if path in FORBIDDEN_FILES
+        or path.startswith(FORBIDDEN_PREFIXES)
+        or (Path(path).suffix.lower() in SOURCE_DOCUMENT_SUFFIXES
+            and not path.startswith("tests/fixtures/fictional-"))
     )
 
 
