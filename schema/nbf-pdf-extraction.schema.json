@@ -1,0 +1,28 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.invalid/pip/nbf-pdf-extraction.schema.json",
+  "title": "NBF Earnings Presentation PDF Extraction v1.0",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["meta", "portfolio_metrics", "property_events"],
+  "properties": {
+    "meta": {
+      "type": "object",
+      "required": ["dataset", "data_engine_version", "publisher", "reit_code", "period", "as_of_date", "source", "layout_fingerprint", "notice"]
+    },
+    "portfolio_metrics": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["metric_code", "value", "unit", "period", "as_of_date", "evidence"]
+      }
+    },
+    "property_events": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["property_name", "reit", "reit_code", "event_type", "announced_period", "as_of_date", "evidence"]
+      }
+    }
+  }
+}

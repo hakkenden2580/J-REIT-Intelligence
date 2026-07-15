@@ -1,0 +1,85 @@
+{
+  "nbf_earnings_49": {
+    "reit_code": "8951",
+    "publisher": "日本ビルファンド投資法人",
+    "title": "2025年12月期（第49期）決算説明会資料",
+    "period": "第49期（2025年12月期）",
+    "as_of_date": "2025-12-31",
+    "url": "https://www.nbf-m.com/nbf/ir/library.html",
+    "download_url": "https://www.nbf-m.com/file/ir_library_term-6593d5d3c1a605b7fb7cd76fbe1df6b9d0e4bec1.pdf",
+    "local_filename": "nbf-49-earnings-presentation.pdf",
+    "output_filename": "nbf-49-earnings-presentation.json",
+    "min_pages": 35,
+    "max_pages": 45,
+    "min_text_pages": 30,
+    "summary_anchors": ["損益計算書", "不動産賃貸収入"],
+    "growth_anchors": ["2-2", "外部成長"],
+    "portfolio_metrics": [
+      {
+        "label": "不動産賃貸収入",
+        "metric_code": "rental_income_million_yen",
+        "unit": "million_jpy",
+        "value_index": 1
+      },
+      {
+        "label": "期中平均稼働率",
+        "metric_code": "occupancy_rate_percent",
+        "unit": "percent",
+        "value_index": 1
+      },
+      {
+        "label": "賃貸NOI",
+        "metric_code": "portfolio_noi_million_yen",
+        "unit": "million_jpy",
+        "value_index": 1
+      }
+    ],
+    "property_events": [
+      {
+        "property_name": "日本橋本町M-SQUARE",
+        "anchor": "日本橋本町M-SQUARE",
+        "event_type": "acquisition_planned",
+        "metrics": [
+          {"field": "price_million_yen", "metric_code": "acquisition_price_million_yen", "unit": "million_jpy", "labels": ["取得予定価格"], "multiplier": 100},
+          {"field": "noi_yield_percent", "metric_code": "noi_yield_percent", "unit": "percent", "labels": ["NOI利回り"]}
+        ]
+      },
+      {
+        "property_name": "豊洲ベイサイドクロスタワー（追加取得）",
+        "anchor": "豊洲ベイサイドクロスタワー",
+        "event_type": "additional_acquisition_planned",
+        "metrics": [
+          {"field": "price_million_yen", "metric_code": "acquisition_price_million_yen", "unit": "million_jpy", "labels": ["取得予定価格"], "multiplier": 100},
+          {"field": "noi_yield_percent", "metric_code": "noi_yield_percent", "unit": "percent", "labels": ["NOI利回り"]}
+        ]
+      },
+      {
+        "property_name": "NBF CONNECT SAPPORO",
+        "anchor": "NBF CONNECT SAPPORO",
+        "event_type": "acquisition",
+        "metrics": [
+          {"field": "price_million_yen", "metric_code": "acquisition_price_million_yen", "unit": "million_jpy", "labels": ["取得価格"], "multiplier": 100},
+          {"field": "noi_yield_percent", "metric_code": "noi_yield_percent", "unit": "percent", "labels": ["NOI利回り"]}
+        ]
+      },
+      {
+        "property_name": "住友電設ビル",
+        "anchor": "住友電設ビル",
+        "event_type": "disposal_planned",
+        "metrics": [
+          {"field": "price_million_yen", "metric_code": "disposal_price_million_yen", "unit": "million_jpy", "labels": ["譲渡予定価格"], "multiplier": 100},
+          {"field": "noi_yield_percent", "metric_code": "noi_yield_percent", "unit": "percent", "labels": ["NOI利回り"]}
+        ]
+      },
+      {
+        "property_name": "NBF札幌南二条ビル",
+        "anchor": "NBF札幌南二条ビル",
+        "event_type": "disposal_planned",
+        "metrics": [
+          {"field": "price_million_yen", "metric_code": "disposal_price_million_yen", "unit": "million_jpy", "labels": ["譲渡予定価格"], "multiplier": 100},
+          {"field": "noi_yield_percent", "metric_code": "noi_yield_percent", "unit": "percent", "labels": ["NOI利回り"]}
+        ]
+      }
+    ]
+  }
+}

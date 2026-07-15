@@ -58,7 +58,14 @@ class LocalPdfAdapter(SourceAdapter):
             "adapter_version": self.adapter_version,
             "layout_fingerprint": layout["fingerprint"],
         }
-        (context.normalized_dir / f"{self.source_key}-properties.json").write_text(
+        output_filename = Path(self.config.get("output_filename", f"{self.source_key}-properties.json"))
+        if output_filename.is_absolute() or ".." in output_filename.parts:
+            raise ValueError("PDF output_filename must be relative to private-data/normalized")
+        output_path = (context.normalized_dir / output_filename).resolve()
+        if not output_path.is_relative_to(context.normalized_dir.resolve()):
+            raise ValueError("PDF output escaped private-data/normalized")
+        output_path.parent.mkdir(parents=True, exist_ok=True)
+        output_path.write_text(
             json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8"
         )
         asset = SourceAsset(
