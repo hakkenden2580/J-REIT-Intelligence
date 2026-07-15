@@ -1,0 +1,65 @@
+{
+  "schema_version": "1.0",
+  "generated_at": "2026-07-15T00:00:00+00:00",
+  "import_run_id": "run-fictional-current",
+  "previous_import_run_id": "run-fictional-previous",
+  "status": "changed",
+  "previous_fingerprint": "1111111111111111111111111111111111111111111111111111111111111111",
+  "current_fingerprint": "2222222222222222222222222222222222222222222222222222222222222222",
+  "totals": {
+    "previous_properties": 1,
+    "current_properties": 1,
+    "properties_added": 0,
+    "properties_removed": 0,
+    "properties_changed": 1,
+    "master_field_changes": 0,
+    "periods_added": 0,
+    "periods_removed": 0,
+    "metric_values_added": 0,
+    "metric_values_removed": 0,
+    "metric_values_changed": 1,
+    "evidence_relinked": 0
+  },
+  "by_reit": {
+    "架空投資法人": {
+      "properties_added": 0,
+      "properties_removed": 0,
+      "properties_changed": 1,
+      "periods_added": 0,
+      "periods_removed": 0,
+      "metric_values_added": 0,
+      "metric_values_removed": 0,
+      "metric_values_changed": 1,
+      "evidence_relinked": 0
+    }
+  },
+  "by_metric": {
+    "cap": {"added": 0, "removed": 0, "changed": 1, "evidence_relinked": 0}
+  },
+  "details": {
+    "properties_added": [],
+    "properties_removed": [],
+    "master_changes": [],
+    "periods_added": [],
+    "periods_removed": [],
+    "metric_changes": [
+      {
+        "property_id": "FICTIONAL-001",
+        "name": "架空サンプルビル",
+        "reit": "架空投資法人",
+        "period": "架空第1期",
+        "as_of_date": "2026-06-30",
+        "metric": "cap",
+        "before": 4.3,
+        "after": 4.2,
+        "delta": -0.1,
+        "evidence": {
+          "source_document_id": "doc-fictional",
+          "retrieved_at": "2026-07-15T00:00:00+00:00",
+          "locator": {"type": "excel_cell", "page": null, "sheet": "架空物件", "cell": "A1", "cell_range": "A1"}
+        }
+      }
+    ],
+    "evidence_relinked": []
+  }
+}

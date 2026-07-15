@@ -13,14 +13,14 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 from data_engine import (AdapterRegistry, ImportContext, NbfWorkbookSetAdapter,
-                         SingleWorkbookExcelAdapter, evaluate_dataset,
-                         execute_import_run)
+                         SingleWorkbookExcelAdapter, archive_snapshot,
+                         compare_datasets, evaluate_dataset, execute_import_run)
 from evidence import metric_evidence, source_document
 from import_nbf import (canonical_name, cell, col_name, geocode, million_yen,
                         number_or_none, percent_from_fraction, read_xlsx, request_bytes)
 from runtime_paths import (CACHE_DIR, NORMALIZED_DIR, PRIVATE_DATA_DIR,
                            QUARANTINE_DIR, RAW_DIR, REPORTS_DIR, ROOT,
-                           ensure_private_dirs)
+                           SNAPSHOTS_DIR, ensure_private_dirs)
 
 
 def numeric_text(value):
@@ -241,6 +241,7 @@ def cli_summary(report: dict) -> dict:
         "same_inputs": bool(run.get("same_inputs_as_run_id")),
         "layout_status": layout,
         "quality": report["quality"],
+        "changes": report.get("changes"),
         "adapter_issues": len(report["issues"]),
     }
 
@@ -255,6 +256,17 @@ def main() -> int:
         print("中止: 各公式ファイルの利用上の注意を確認後、--accept-source-terms を付けてください。", file=sys.stderr)
         return 2
     ensure_private_dirs()
+    # Capture the last accepted combined dataset before legacy NBF parsing writes
+    # its intermediate 70-property output to the shared normalized directory.
+    existing_path = NORMALIZED_DIR / "properties.json"
+    previous_payload = None
+    if existing_path.is_file():
+        try:
+            candidate = json.loads(existing_path.read_text(encoding="utf-8"))
+            if candidate.get("meta", {}).get("dataset") == "multi-reit-official-local":
+                previous_payload = candidate
+        except (OSError, json.JSONDecodeError):
+            previous_payload = None
     configs = json.loads((ROOT / "config/sources.json").read_text(encoding="utf-8"))
     cache_path = CACHE_DIR / "geocode-cache.json"
     cache = json.loads(cache_path.read_text(encoding="utf-8")) if cache_path.exists() else {}
@@ -295,7 +307,7 @@ def main() -> int:
     payload = {"meta": {"dataset": "multi-reit-official-local", "label": "NBF・JRE・GLP 横断データ",
                         "reit_codes": ["8951","8952","3281"], "as_of_date": max(nbf["meta"]["as_of_date"],jre["meta"]["as_of_date"],glp["meta"]["as_of_date"]),
                         "generated_at": datetime.now(timezone.utc).isoformat(),
-                        "data_engine_version": "0.7.0", "import_run_id": import_run["run_id"],
+                        "data_engine_version": "0.8.0", "import_run_id": import_run["run_id"],
                         "notice": "各社公式ファイルを利用者のMac内で変換したローカル分析用データ。公開・再配布しないでください。"},
                "properties": combined}
     quality_report = evaluate_dataset(payload, import_run_id=import_run["run_id"])
@@ -304,14 +316,18 @@ def main() -> int:
         "evidence_coverage_percent": quality_report["totals"]["evidence_coverage_percent"],
         "coordinate_coverage_percent": quality_report["totals"]["coordinate_coverage_percent"],
     }
+    change_report = compare_datasets(previous_payload, payload, import_run_id=import_run["run_id"])
     all_report = {"properties": len(combined), "by_reit": {"NBF": len(nbf["properties"]), "JRE": len(jre["properties"]), "GLP": len(glp["properties"])},
                   "import_run": import_run,
                   "quality": {"status": quality_report["status"], "totals": quality_report["totals"]},
+                  "changes": {"status": change_report["status"], "totals": change_report["totals"]},
                   "nbf": results["nbf"].report, "jre": results["jre"].report, "glp": results["glp"].report,
                   "issues": results["nbf"].issues + results["jre"].issues + results["glp"].issues}
     quality_name = f"quality-{import_run['run_id']}.json"
     (REPORTS_DIR / quality_name).write_text(json.dumps(quality_report, ensure_ascii=False, indent=2), encoding="utf-8")
     (REPORTS_DIR / "latest-quality-report.json").write_text(json.dumps(quality_report, ensure_ascii=False, indent=2), encoding="utf-8")
+    change_name = f"changes-{import_run['run_id']}.json"
+    (REPORTS_DIR / change_name).write_text(json.dumps(change_report, ensure_ascii=False, indent=2), encoding="utf-8")
     (REPORTS_DIR / "all-import-report.json").write_text(json.dumps(all_report, ensure_ascii=False, indent=2), encoding="utf-8")
     if quality_report["status"] == "failed":
         quarantine = {"run_id": import_run["run_id"], "reason": "data_quality_failed", "totals": quality_report["totals"]}
@@ -321,7 +337,11 @@ def main() -> int:
         print(json.dumps(all_report if args.verbose else cli_summary(all_report), ensure_ascii=False, indent=2))
         print("中止: データ品質Gateでエラーを検出したため、既存の正常データは上書きしません。", file=sys.stderr)
         return 1
+    if previous_payload:
+        archive_snapshot(previous_payload, SNAPSHOTS_DIR)
     (NORMALIZED_DIR / "properties.json").write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
+    archive_snapshot(payload, SNAPSHOTS_DIR)
+    (REPORTS_DIR / "latest-change-report.json").write_text(json.dumps(change_report, ensure_ascii=False, indent=2), encoding="utf-8")
     print(json.dumps(all_report if args.verbose else cli_summary(all_report), ensure_ascii=False, indent=2))
     expected = all(result.payload.get("properties") for result in results.values()) and not all_report["issues"]
     return 0 if expected else 1

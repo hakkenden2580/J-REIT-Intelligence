@@ -1,6 +1,6 @@
-# J-REIT Intelligence v0.7
+# J-REIT Intelligence v0.8
 
-Property Intelligence Platform（PIP）の最初のモジュールです。NBF・JRE・GLPを横断し、地図、検索、物件詳細、時系列グラフ、類似物件比較、出典セル表示、CSV出力を備えます。v0.6でExcel・PDF・XBRLを同じ流れで追加するData Engine契約を導入し、v0.7では正規化済みデータを公開前に検査するData Quality Gateと品質ダッシュボードを追加しました。
+Property Intelligence Platform（PIP）の最初のモジュールです。NBF・JRE・GLPを横断し、地図、検索、物件詳細、時系列グラフ、類似物件比較、出典セル表示、CSV出力を備えます。v0.6でData Engine契約、v0.7でData Quality Gate、v0.8で前回の正常データとの差分検出とローカルスナップショットを追加しました。
 
 ## データ方針
 
@@ -18,7 +18,8 @@ private-data/
 ├── normalized/   正規化済みJSON
 ├── cache/        座標等のキャッシュ
 ├── reports/      取込・検証レポート
-└── quarantine/   要確認データ
+├── quarantine/   要確認データ
+└── snapshots/    正常データの圧縮履歴（最大12世代）
 ```
 
 Git境界は次で確認できます。
@@ -110,6 +111,20 @@ Import Run監査記録
 画面上部の「品質」ボタンでは、投資法人別・指標別のEvidence充足率と品質Gateの結果を確認できます。画面用APIは集計値だけを返し、物件別問題、原本URL、ファイル名、SHA-256を返しません。契約は`schema/data-quality-report.schema.json`です。
 
 現在の234物件では、1,561時点・15,707数値のEvidence充足率100%、座標充足率100%、品質Gateエラー0件を確認しています。公式Excelで利回りが0%と記録されている「該当なし」の値は、実在する0%利回りと誤認しないよう欠損値へ正規化します。
+
+## Dataset Change Detection v0.8
+
+品質Gateを通過したデータだけを前回の正常データと比較し、次を検出します。
+
+- 新規物件と除外候補（除外だけで売却と断定しません）
+- 物件名、住所、用途、座標等のマスター変更
+- 新規・削除された決算期データ
+- CAP、NOI、稼働率、鑑定評価額等の追加・削除・変更
+- 数値が同じでも根拠資料が変わったEvidenceの再紐付け
+
+詳細差分は`private-data/reports/latest-change-report.json`へ保存し、各数値変更に新しい出典document ID、取得日時、PDFページまたはExcelシート・セルを保持します。正常データは`private-data/snapshots/`へgzip圧縮し、同じ業務値・Evidenceの版は重複保存しません。
+
+画面上部の「差分」ボタンは投資法人別・指標別の集計だけを表示します。物件名、物件ID、変更前後の数値、原本情報は画面用APIへ出さず、Mac内の詳細レポートに限定します。契約は`schema/dataset-change-report.schema.json`です。
 
 ## ローカル起動
 

@@ -107,7 +107,7 @@ class SingleWorkbookExcelAdapter(SourceAdapter):
 class NbfWorkbookSetAdapter(SourceAdapter):
     source_key = "nbf"
     adapter_id = "nbf_excel"
-    adapter_version = "0.6.0"
+    adapter_version = "0.8.0"
 
     def __init__(
         self,
@@ -147,7 +147,8 @@ class NbfWorkbookSetAdapter(SourceAdapter):
                 download_url=period["download_url"],
                 layout_fingerprint=layout["fingerprint"],
             ))
-        command = [sys.executable, str(context.root / "scripts/import_nbf.py"), "--accept-source-terms"]
+        command = [sys.executable, str(context.root / "scripts/import_nbf.py"),
+                   "--accept-source-terms", "--no-promote"]
         environment = {**os.environ, "PIP_PRIVATE_DATA_DIR": str(context.private_data_dir)}
         subprocess.run(command, cwd=context.root, env=environment, check=True, stdout=subprocess.DEVNULL)
         payload = json.loads((context.normalized_dir / "nbf-properties.json").read_text(encoding="utf-8"))

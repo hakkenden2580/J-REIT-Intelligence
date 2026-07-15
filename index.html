@@ -3,13 +3,14 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
-  <title>J-REIT Intelligence v0.7</title>
+  <title>J-REIT Intelligence v0.8</title>
   <meta name="description" content="J-REIT物件の地図、時系列分析、類似物件比較を行うProperty Intelligence Platformの試作モジュール">
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
   <link rel="stylesheet" href="styles.css">
+  <link rel="stylesheet" href="change-report.css">
 </head>
 <body>
-  <header><div><h1>J-REIT Intelligence</h1><p>Property Intelligence Platform — J-REIT Module v0.7</p></div><div class="header-actions"><span id="engineStatus" class="engine-status" hidden></span><button id="qualityButton" class="quality-button" hidden>品質確認</button><span id="dataset" class="dataset">読込中</span><button id="export">CSV出力</button></div></header>
+  <header><div><h1>J-REIT Intelligence</h1><p>Property Intelligence Platform — J-REIT Module v0.8</p></div><div class="header-actions"><span id="engineStatus" class="engine-status" hidden></span><button id="changeButton" class="change-button" hidden>差分確認</button><button id="qualityButton" class="quality-button" hidden>品質確認</button><span id="dataset" class="dataset">読込中</span><button id="export">CSV出力</button></div></header>
   <main>
     <aside>
       <input id="search" type="search" placeholder="物件名・住所を検索">
@@ -25,6 +26,10 @@
   <dialog id="qualityDialog" class="quality-dialog">
     <div class="dialog-heading"><div><span class="eyebrow">DATA QUALITY</span><h2>データ品質レポート</h2></div><form method="dialog"><button class="dialog-close" aria-label="閉じる">×</button></form></div>
     <div id="qualityContent"><p class="empty">品質レポートを読み込んでいます。</p></div>
+  </dialog>
+  <dialog id="changeDialog" class="quality-dialog">
+    <div class="dialog-heading"><div><span class="eyebrow">DATA CHANGES</span><h2>更新差分レポート</h2></div><form method="dialog"><button class="dialog-close" aria-label="閉じる">×</button></form></div>
+    <div id="changeContent"><p class="empty">差分レポートを読み込んでいます。</p></div>
   </dialog>
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <script src="app.js" defer></script>
