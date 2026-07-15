@@ -1,0 +1,26 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.invalid/pip/workbook-layout.schema.json",
+  "title": "PIP Workbook Layout v1.0",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["sheet_count", "sheets", "fingerprint"],
+  "properties": {
+    "sheet_count": {"type": "integer", "minimum": 0},
+    "sheets": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["name", "max_row", "max_column", "non_empty_cells"],
+        "properties": {
+          "name": {"type": "string", "minLength": 1},
+          "max_row": {"type": "integer", "minimum": 0},
+          "max_column": {"type": "integer", "minimum": 0},
+          "non_empty_cells": {"type": "integer", "minimum": 0}
+        }
+      }
+    },
+    "fingerprint": {"type": "string", "pattern": "^[a-f0-9]{64}$"}
+  }
+}

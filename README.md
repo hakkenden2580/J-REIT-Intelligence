@@ -1,6 +1,6 @@
-# J-REIT Intelligence v0.5
+# J-REIT Intelligence v0.6
 
-Property Intelligence Platform（PIP）の最初のモジュールです。NBF・JRE・GLPを横断し、地図、検索、物件詳細、時系列グラフ、類似物件比較、出典セル表示、CSV出力を備えます。
+Property Intelligence Platform（PIP）の最初のモジュールです。NBF・JRE・GLPを横断し、地図、検索、物件詳細、時系列グラフ、類似物件比較、出典セル表示、CSV出力を備えます。v0.6では、Excel・PDF・XBRLを同じ流れで追加するためのData Engine契約を導入しました。
 
 ## データ方針
 
@@ -57,6 +57,43 @@ python3 scripts/import_all.py --accept-source-terms
 
 原本を再取得する場合は `--refresh` を追加します。
 
+## Data Engine v0.6
+
+3法人の取込は、共通の`SourceAdapter`契約と`AdapterRegistry`を経由します。
+
+```text
+SourceAdapter
+  ├── NbfWorkbookSetAdapter
+  ├── SingleWorkbookExcelAdapter (JRE)
+  └── SingleWorkbookExcelAdapter (GLP)
+        ↓
+Workbook Layout検証
+        ↓
+法人別Parser
+        ↓
+Evidence付き共通JSON
+        ↓
+Import Run監査記録
+```
+
+各実行では次を`private-data/reports/`に保存します。
+
+- `latest-import-run.json`：最新の実行結果
+- `import-runs/run-*.json`：実行履歴、Adapterバージョン、入力SHA-256、件数、問題数
+- `layout-baselines.json`：Excelシート構成の指紋と変更状態
+- `all-import-report.json`：3法人の統合検証結果
+
+同じ原本・同じAdapterバージョンからは同じ`idempotency_key`が生成されます。シート不足など互換性のないレイアウトは処理を止め、失敗記録を`private-data/quarantine/`へ保存します。レイアウト指紋はシート名・行列数・非空セル数だけから生成し、セル値を監査ログへ持ち出しません。
+
+契約は次のファイルです。
+
+- `scripts/data_engine/contracts.py`：SourceAdapter、ImportContext、AdapterResult
+- `scripts/data_engine/registry.py`：Adapter登録と選択
+- `scripts/data_engine/layout.py`：Workbookレイアウト検証
+- `scripts/data_engine/runner.py`：Import Runと再現性管理
+- `schema/import-run.schema.json`
+- `schema/workbook-layout.schema.json`
+
 ## ローカル起動
 
 ```bash
@@ -77,7 +114,7 @@ python3 scripts/serve_local.py
 - Parser名、バージョン、抽出方法、confidence
 - review status、確認者、確認日時
 
-契約は`schema/source-evidence.schema.json`、`schema/canonical-property-period.schema.json`、`schema/metric-dictionary.json`です。現在のExcel ImporterはExcelシート・セルまで記録し、PDFページは今後のPDF Adapterで追加します。
+契約は`schema/source-evidence.schema.json`、`schema/canonical-property-period.schema.json`、`schema/metric-dictionary.json`です。現在のExcel AdapterはExcelシート・セルまで記録し、PDFページは今後のPDF Adapterで追加します。
 
 ## テスト
 
@@ -85,3 +122,5 @@ python3 scripts/serve_local.py
 python3 -m unittest discover -s tests -v
 python3 scripts/check_git_boundary.py
 ```
+
+同じ検証は`.github/workflows/ci.yml`でも実行され、Pull Requestと`main`更新時に、テスト、実データ境界、JavaScript/Python構文を自動確認します。CIには実データを渡さず、架空fixtureだけを使用します。

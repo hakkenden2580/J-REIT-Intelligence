@@ -7,7 +7,7 @@ import hashlib
 from datetime import datetime, timezone
 from pathlib import Path
 
-PARSER_VERSION = "0.5.0"
+PARSER_VERSION = "0.6.0"
 
 METRICS = {
     "price": ("acquisition_price_million_yen", "million_jpy"),
@@ -110,4 +110,3 @@ def metric_evidence(
             },
         }
     return result
-

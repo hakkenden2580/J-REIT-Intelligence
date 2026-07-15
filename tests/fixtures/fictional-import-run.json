@@ -1,0 +1,12 @@
+{
+  "schema_version": "1.0",
+  "run_id": "run-20260715T000000000000Z",
+  "status": "succeeded",
+  "started_at": "2026-07-15T00:00:00+00:00",
+  "finished_at": "2026-07-15T00:00:01+00:00",
+  "idempotency_key": "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+  "same_inputs_as_run_id": null,
+  "adapters": [],
+  "layout_statuses": {"fictional_excel:fictional.xlsx": "new"},
+  "totals": {"adapters": 1, "properties": 1, "issues": 0}
+}

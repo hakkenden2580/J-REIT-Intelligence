@@ -1,0 +1,8 @@
+{
+  "sheet_count": 2,
+  "sheets": [
+    {"name": "架空物件一覧", "max_row": 3, "max_column": 4, "non_empty_cells": 8},
+    {"name": "架空収益", "max_row": 5, "max_column": 3, "non_empty_cells": 6}
+  ],
+  "fingerprint": "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
+}

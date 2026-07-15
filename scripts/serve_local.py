@@ -5,12 +5,13 @@ from __future__ import annotations
 
 import argparse
 import functools
+import io
 import json
 import posixpath
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import unquote, urlsplit
 
-from runtime_paths import NORMALIZED_DIR, ROOT, ensure_private_dirs
+from runtime_paths import NORMALIZED_DIR, REPORTS_DIR, ROOT, ensure_private_dirs
 
 BLOCKED_PREFIXES = ("/private-data/", "/sources/raw/", "/.git/")
 BLOCKED_DIRECTORIES = {"/private-data", "/sources/raw", "/.git"}
@@ -40,7 +41,30 @@ def is_blocked_path(request_path: str) -> bool:
     )
 
 
+def sanitized_import_status(record: dict) -> dict:
+    layout_values = set(record.get("layout_statuses", {}).values())
+    layout_status = "changed" if "changed" in layout_values else "unchanged" if layout_values == {"unchanged"} else "new"
+    return {
+        "run_id": record.get("run_id"),
+        "status": record.get("status"),
+        "finished_at": record.get("finished_at"),
+        "same_inputs": bool(record.get("same_inputs_as_run_id")),
+        "layout_status": layout_status,
+        "totals": record.get("totals", {}),
+    }
+
+
 class LocalHandler(SimpleHTTPRequestHandler):
+    def json_response(self, payload: dict):
+        encoded = json.dumps(payload, ensure_ascii=False).encode("utf-8")
+        self.send_response(200)
+        self.send_header("Content-Type", "application/json; charset=utf-8")
+        self.send_header("Content-Length", str(len(encoded)))
+        self.send_header("Cache-Control", "no-store")
+        self.send_header("X-Content-Type-Options", "nosniff")
+        self.end_headers()
+        return io.BytesIO(encoded)
+
     def copyfile(self, source, outputfile) -> None:
         try:
             super().copyfile(source, outputfile)
@@ -50,6 +74,16 @@ class LocalHandler(SimpleHTTPRequestHandler):
 
     def send_head(self):
         request_path = normalized_request_path(self.path)
+        if request_path == "/runtime-data/import-status.json":
+            target = REPORTS_DIR / "latest-import-run.json"
+            if not target.is_file():
+                self.send_error(404, "Import status not found")
+                return None
+            try:
+                return self.json_response(sanitized_import_status(json.loads(target.read_text(encoding="utf-8"))))
+            except (OSError, json.JSONDecodeError):
+                self.send_error(500, "Import status is invalid")
+                return None
         if request_path == "/runtime-data/properties.json":
             target = NORMALIZED_DIR / "properties.json"
             if not target.is_file():
