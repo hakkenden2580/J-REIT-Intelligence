@@ -53,6 +53,33 @@ async function loadQualityStatus(){
   }catch{button.hidden=true}
 }
 
+async function loadChangeStatus(){
+  const button=document.querySelector("#changeButton"),dialog=document.querySelector("#changeDialog"),content=document.querySelector("#changeContent");
+  try{
+    const res=await fetch("runtime-data/change-status.json",{cache:"no-store"});if(!res.ok)return;
+    const report=await res.json(),totals=report.totals||{};
+    const affected=Number(totals.properties_added||0)+Number(totals.properties_removed||0)+Number(totals.properties_changed||0);
+    const statusText=report.status==="baseline"?"基準作成":report.status==="changed"?`${affected}物件更新`:"変更なし";
+    button.textContent=`差分 ${statusText}`;button.className=`change-button ${report.status||"baseline"}`;button.hidden=false;
+    const cards=[
+      ["更新前",`${Number(totals.previous_properties||0).toLocaleString("ja-JP")}物件`],
+      ["更新後",`${Number(totals.current_properties||0).toLocaleString("ja-JP")}物件`],
+      ["新規",`${Number(totals.properties_added||0).toLocaleString("ja-JP")}物件`],
+      ["除外候補",`${Number(totals.properties_removed||0).toLocaleString("ja-JP")}物件`],
+      ["変更物件",`${Number(totals.properties_changed||0).toLocaleString("ja-JP")}物件`],
+      ["追加時点",`${Number(totals.periods_added||0).toLocaleString("ja-JP")}件`],
+      ["数値変更",`${Number(totals.metric_values_changed||0).toLocaleString("ja-JP")}件`],
+      ["出典更新",`${Number(totals.evidence_relinked||0).toLocaleString("ja-JP")}件`],
+    ].map(([label,value])=>`<div><span>${esc(label)}</span><b>${esc(value)}</b></div>`).join("");
+    const reits=Object.entries(report.by_reit||{}).map(([name,item])=>`<tr><td>${esc(name)}</td><td>${Number(item.properties_added||0).toLocaleString("ja-JP")}</td><td>${Number(item.properties_removed||0).toLocaleString("ja-JP")}</td><td>${Number(item.properties_changed||0).toLocaleString("ja-JP")}</td><td>${Number(item.periods_added||0).toLocaleString("ja-JP")}</td><td>${Number(item.metric_values_changed||0).toLocaleString("ja-JP")}</td></tr>`).join("");
+    const metricRows=Object.entries(report.by_metric||{}).filter(([,item])=>Object.values(item).some(Number)).map(([code,item])=>`<tr><td>${esc(evidenceLabels[code]||code)}</td><td>${Number(item.added||0).toLocaleString("ja-JP")}</td><td>${Number(item.removed||0).toLocaleString("ja-JP")}</td><td>${Number(item.changed||0).toLocaleString("ja-JP")}</td><td>${Number(item.evidence_relinked||0).toLocaleString("ja-JP")}</td></tr>`).join("");
+    const generated=report.generated_at?new Date(report.generated_at).toLocaleString("ja-JP"):"未記録";
+    const description=report.status==="baseline"?"今回のデータを今後の比較基準として保存しました。":report.status==="unchanged"?"前回の正常データから業務値の変更はありません。":"前回の正常データとの差分を検出しました。除外は売却と断定せず、確認候補として扱います。";
+    content.innerHTML=`<div class="change-summary ${esc(report.status)}"><div><span>判定</span><b>${esc(statusText)}</b></div><small>比較日時 ${esc(generated)}</small></div><p class="change-description">${esc(description)}</p><div class="change-cards">${cards}</div><section class="quality-section"><h3>投資法人別差分</h3><div class="table-scroll"><table><thead><tr><th>投資法人</th><th>新規</th><th>除外候補</th><th>変更物件</th><th>追加時点</th><th>数値変更</th></tr></thead><tbody>${reits||'<tr><td colspan="6">差分なし</td></tr>'}</tbody></table></div></section><section class="quality-section"><h3>指標別差分</h3><div class="table-scroll"><table><thead><tr><th>指標</th><th>追加</th><th>削除</th><th>変更</th><th>出典更新</th></tr></thead><tbody>${metricRows||'<tr><td colspan="5">差分なし</td></tr>'}</tbody></table></div></section><p class="privacy-note">物件名、物件ID、変更前後の数値、出典資料・ページ・シート・セルは画面用APIへ出していません。詳細はMac内のprivate-data/reports/latest-change-report.json、履歴はprivate-data/snapshotsで管理します。</p>`;
+    button.onclick=()=>dialog.showModal();
+  }catch{button.hidden=true}
+}
+
 function sourcePanel(p){
   const src=p.source;if(!src)return'<div class="source">デモデータ（架空）。実データとして利用しないでください。</div>';
   const entries=Object.entries(p.evidence||{}).map(([field,item])=>{const loc=item.locator||{};const position=[loc.page?`p.${loc.page}`:"",loc.sheet||"",loc.cell||loc.cell_range||""].filter(Boolean).join(" / ");return`<li><b>${esc(evidenceLabels[field]||field)}</b><br><code>${esc(position||"位置情報なし")}</code>・${esc(item.unit||"")}・${esc(item.review?.status||"未確認")}</li>`}).join("");
@@ -139,3 +166,4 @@ window.addEventListener("resize",()=>{if(selected){const metric=document.querySe
 loadData().catch(err=>{document.querySelector("#dataset").textContent="読込エラー";document.querySelector("#detail").innerHTML=`<p class="error">データを読み込めませんでした。${esc(err.message)}</p>`});
 loadImportStatus();
 loadQualityStatus();
+loadChangeStatus();

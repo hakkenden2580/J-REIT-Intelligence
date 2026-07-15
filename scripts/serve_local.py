@@ -89,6 +89,37 @@ def sanitized_quality_status(record: dict) -> dict:
     }
 
 
+def sanitized_change_status(record: dict) -> dict:
+    """Expose change counts only; property names, IDs and Evidence stay private."""
+    allowed_totals = (
+        "previous_properties", "current_properties", "properties_added",
+        "properties_removed", "properties_changed", "master_field_changes",
+        "periods_added", "periods_removed", "metric_values_added",
+        "metric_values_removed", "metric_values_changed", "evidence_relinked",
+    )
+    totals = record.get("totals", {})
+    allowed_reit = (
+        "properties_added", "properties_removed", "properties_changed",
+        "periods_added", "periods_removed", "metric_values_added",
+        "metric_values_removed", "metric_values_changed", "evidence_relinked",
+    )
+    by_reit = {
+        name: {key: item.get(key, 0) for key in allowed_reit}
+        for name, item in record.get("by_reit", {}).items()
+    }
+    by_metric = {
+        code: {key: item.get(key, 0) for key in ("added", "removed", "changed", "evidence_relinked")}
+        for code, item in record.get("by_metric", {}).items()
+    }
+    return {
+        "status": record.get("status"),
+        "generated_at": record.get("generated_at"),
+        "totals": {key: totals.get(key, 0) for key in allowed_totals},
+        "by_reit": by_reit,
+        "by_metric": by_metric,
+    }
+
+
 class LocalHandler(SimpleHTTPRequestHandler):
     def json_response(self, payload: dict):
         encoded = json.dumps(payload, ensure_ascii=False).encode("utf-8")
@@ -109,6 +140,16 @@ class LocalHandler(SimpleHTTPRequestHandler):
 
     def send_head(self):
         request_path = normalized_request_path(self.path)
+        if request_path == "/runtime-data/change-status.json":
+            target = REPORTS_DIR / "latest-change-report.json"
+            if not target.is_file():
+                self.send_error(404, "Change status not found")
+                return None
+            try:
+                return self.json_response(sanitized_change_status(json.loads(target.read_text(encoding="utf-8"))))
+            except (OSError, json.JSONDecodeError):
+                self.send_error(500, "Change status is invalid")
+                return None
         if request_path == "/runtime-data/quality-status.json":
             target = REPORTS_DIR / "latest-quality-report.json"
             if not target.is_file():

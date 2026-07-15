@@ -254,6 +254,7 @@ def main() -> int:
     parser.add_argument("--accept-source-terms", action="store_true", help="原本の利用上の注意を確認したうえでローカル変換を実行")
     parser.add_argument("--skip-geocode", action="store_true")
     parser.add_argument("--refresh", action="store_true", help="全期間の原本を再ダウンロード")
+    parser.add_argument("--no-promote", action="store_true", help=argparse.SUPPRESS)
     args = parser.parse_args()
     if not args.accept_source_terms:
         print("中止: NBF原本の『ご利用上の注意』を確認後、--accept-source-terms を付けて実行してください。", file=sys.stderr)
@@ -308,7 +309,8 @@ def main() -> int:
                                  for length in range(1, len(common["periods"]) + 1)},
               "period_reports": period_reports, "issues": issues}
     (data_dir / "nbf-properties.json").write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
-    (data_dir / "properties.json").write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
+    if not args.no_promote:
+        (data_dir / "properties.json").write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
     (REPORTS_DIR / "import-report.json").write_text(json.dumps(report, ensure_ascii=False, indent=2), encoding="utf-8")
     print(json.dumps(report, ensure_ascii=False, indent=2))
     return 0 if len(properties) > 0 and not issues else 1

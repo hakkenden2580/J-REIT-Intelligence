@@ -1,0 +1,105 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.invalid/pip/dataset-change-report.schema.json",
+  "title": "PIP Dataset Change Report v1.0",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "generated_at",
+    "import_run_id",
+    "previous_import_run_id",
+    "status",
+    "previous_fingerprint",
+    "current_fingerprint",
+    "totals",
+    "by_reit",
+    "by_metric",
+    "details"
+  ],
+  "properties": {
+    "schema_version": {"const": "1.0"},
+    "generated_at": {"type": "string", "format": "date-time"},
+    "import_run_id": {"type": ["string", "null"]},
+    "previous_import_run_id": {"type": ["string", "null"]},
+    "status": {"enum": ["baseline", "unchanged", "changed"]},
+    "previous_fingerprint": {"type": ["string", "null"], "pattern": "^[a-f0-9]{64}$"},
+    "current_fingerprint": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
+    "totals": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "previous_properties", "current_properties", "properties_added",
+        "properties_removed", "properties_changed", "master_field_changes",
+        "periods_added", "periods_removed", "metric_values_added",
+        "metric_values_removed", "metric_values_changed", "evidence_relinked"
+      ],
+      "properties": {
+        "previous_properties": {"type": "integer", "minimum": 0},
+        "current_properties": {"type": "integer", "minimum": 0},
+        "properties_added": {"type": "integer", "minimum": 0},
+        "properties_removed": {"type": "integer", "minimum": 0},
+        "properties_changed": {"type": "integer", "minimum": 0},
+        "master_field_changes": {"type": "integer", "minimum": 0},
+        "periods_added": {"type": "integer", "minimum": 0},
+        "periods_removed": {"type": "integer", "minimum": 0},
+        "metric_values_added": {"type": "integer", "minimum": 0},
+        "metric_values_removed": {"type": "integer", "minimum": 0},
+        "metric_values_changed": {"type": "integer", "minimum": 0},
+        "evidence_relinked": {"type": "integer", "minimum": 0}
+      }
+    },
+    "by_reit": {"type": "object", "additionalProperties": {"$ref": "#/$defs/reitCounters"}},
+    "by_metric": {"type": "object", "additionalProperties": {"$ref": "#/$defs/metricCounters"}},
+    "details": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "properties_added", "properties_removed", "master_changes",
+        "periods_added", "periods_removed", "metric_changes", "evidence_relinked"
+      ],
+      "properties": {
+        "properties_added": {"type": "array", "items": {"type": "object"}},
+        "properties_removed": {"type": "array", "items": {"type": "object"}},
+        "master_changes": {"type": "array", "items": {"type": "object"}},
+        "periods_added": {"type": "array", "items": {"type": "object"}},
+        "periods_removed": {"type": "array", "items": {"type": "object"}},
+        "metric_changes": {"type": "array", "items": {"type": "object"}},
+        "evidence_relinked": {"type": "array", "items": {"type": "object"}}
+      }
+    }
+  },
+  "$defs": {
+    "reitCounters": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "properties_added", "properties_removed", "properties_changed",
+        "periods_added", "periods_removed", "metric_values_added",
+        "metric_values_removed", "metric_values_changed", "evidence_relinked"
+      ],
+      "properties": {
+        "properties_added": {"type": "integer", "minimum": 0},
+        "properties_removed": {"type": "integer", "minimum": 0},
+        "properties_changed": {"type": "integer", "minimum": 0},
+        "periods_added": {"type": "integer", "minimum": 0},
+        "periods_removed": {"type": "integer", "minimum": 0},
+        "metric_values_added": {"type": "integer", "minimum": 0},
+        "metric_values_removed": {"type": "integer", "minimum": 0},
+        "metric_values_changed": {"type": "integer", "minimum": 0},
+        "evidence_relinked": {"type": "integer", "minimum": 0}
+      }
+    },
+    "metricCounters": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["added", "removed", "changed", "evidence_relinked"],
+      "properties": {
+        "added": {"type": "integer", "minimum": 0},
+        "removed": {"type": "integer", "minimum": 0},
+        "changed": {"type": "integer", "minimum": 0},
+        "evidence_relinked": {"type": "integer", "minimum": 0}
+      }
+    }
+  }
+}
