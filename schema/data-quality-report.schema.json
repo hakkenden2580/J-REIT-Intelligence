@@ -1,0 +1,22 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.invalid/pip/data-quality-report.schema.json",
+  "title": "PIP Data Quality Report v1.0",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "generated_at", "import_run_id", "status", "totals", "by_reit", "metrics", "checks", "issue_samples"],
+  "properties": {
+    "schema_version": {"const": "1.0"},
+    "generated_at": {"type": "string", "format": "date-time"},
+    "import_run_id": {"type": ["string", "null"]},
+    "status": {"enum": ["passed", "warning", "failed"]},
+    "totals": {
+      "type": "object",
+      "required": ["properties", "periods", "numeric_values", "evidence_complete", "evidence_coverage_percent", "with_coordinates", "coordinate_coverage_percent", "duplicate_ids", "errors", "warnings"]
+    },
+    "by_reit": {"type": "object"},
+    "metrics": {"type": "object"},
+    "checks": {"type": "array", "items": {"type": "object"}},
+    "issue_samples": {"type": "object"}
+  }
+}
