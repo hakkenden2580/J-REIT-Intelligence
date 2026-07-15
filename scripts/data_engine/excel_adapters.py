@@ -1,4 +1,4 @@
-"""Excel adapter implementations for the three v0.6 pilot REITs."""
+"""Excel adapter implementations for the three pilot REITs."""
 
 from __future__ import annotations
 
@@ -44,7 +44,6 @@ def _asset(
 
 
 class SingleWorkbookExcelAdapter(SourceAdapter):
-    adapter_version = "0.6.0"
 
     def __init__(
         self,
@@ -56,6 +55,7 @@ class SingleWorkbookExcelAdapter(SourceAdapter):
         read_xlsx: Callable[[Path], dict[str, dict[str, object]]],
         required_sheets: tuple[str, ...],
         title: str,
+        adapter_version: str = "0.6.0",
     ) -> None:
         self.source_key = source_key
         self.adapter_id = f"{source_key}_excel"
@@ -65,6 +65,7 @@ class SingleWorkbookExcelAdapter(SourceAdapter):
         self.read_xlsx = read_xlsx
         self.required_sheets = required_sheets
         self.title = title
+        self.adapter_version = adapter_version
 
     def run(self, context: ImportContext) -> AdapterResult:
         path = context.raw_dir / self.config["local_filename"]
