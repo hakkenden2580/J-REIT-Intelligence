@@ -1,0 +1,20 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.invalid/pip/source-document.schema.json",
+  "title": "PIP Source Document v1.0",
+  "type": "object",
+  "required": ["document_id", "publisher", "title", "url", "sha256", "retrieved_at", "media_type"],
+  "properties": {
+    "document_id": {"type": "string", "pattern": "^doc-[a-f0-9]{20}$"},
+    "publisher": {"type": "string", "minLength": 1},
+    "title": {"type": "string", "minLength": 1},
+    "period": {"type": ["string", "null"]},
+    "as_of_date": {"type": ["string", "null"], "format": "date"},
+    "url": {"type": "string", "format": "uri"},
+    "download_url": {"type": "string", "format": "uri"},
+    "sha256": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
+    "retrieved_at": {"type": "string", "format": "date-time"},
+    "media_type": {"type": "string", "minLength": 1},
+    "supersedes_document_id": {"type": ["string", "null"]}
+  }
+}

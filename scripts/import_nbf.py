@@ -21,12 +21,14 @@ from datetime import datetime, timezone
 from pathlib import Path
 from xml.etree import ElementTree as ET
 
-ROOT = Path(__file__).resolve().parents[1]
+from evidence import metric_evidence, source_document
+from runtime_paths import CACHE_DIR, NORMALIZED_DIR, RAW_DIR, REPORTS_DIR, ROOT, ensure_private_dirs
+
 NS = {"m": "http://schemas.openxmlformats.org/spreadsheetml/2006/main"}
 REL_NS = {"r": "http://schemas.openxmlformats.org/package/2006/relationships"}
 DOC_REL = "http://schemas.openxmlformats.org/officeDocument/2006/relationships"
 GSI_URL = "https://msearch.gsi.go.jp/address-search/AddressSearch"
-USER_AGENT = "J-REIT-Intelligence/0.3 local research prototype"
+USER_AGENT = "J-REIT-Intelligence/0.5 local research prototype"
 
 
 def request_bytes(url: str) -> bytes:
@@ -187,7 +189,15 @@ def parse_period(source_path: Path, period: dict, common: dict) -> tuple[list[di
         value = cell(income, col, income_header)
         if value:
             income_columns[canonical_name(value)] = col
-    sha256 = hashlib.sha256(source_path.read_bytes()).hexdigest()
+    source_base = source_document(
+        source_path,
+        publisher=common["reit_name"],
+        title=f"第{period['period_no']}期 物件毎データ",
+        period=period["period"],
+        as_of_date=period["as_of_date"],
+        url=common["library_url"],
+        download_url=period["download_url"],
+    )
     snapshots, issues = [], []
     region_labels = {1: "東京都心部", 2: "東京周辺都市部", 3: "地方都市部"}
     row = header_row + 1
@@ -214,7 +224,8 @@ def parse_period(source_path: Path, period: dict, common: dict) -> tuple[list[di
                 "terminal_cap_rate": f"{portfolio_name}!M{row}",
                 "noi": f"{income_name}!{col_name(income_col)}{noi_row}" if income_col else None
             }
-            snapshots.append({
+            source = {**source_base, "cells": source_cells}
+            record = {
                 "key": key, "name": name, "reit": common["reit_name"], "reit_code": common["reit_code"],
                 "type": "オフィス", "region": region_labels.get(region_code), "address": str(address_value).strip(),
                 "period_no": period["period_no"], "period": period["period"], "as_of_date": period["as_of_date"],
@@ -224,10 +235,10 @@ def parse_period(source_path: Path, period: dict, common: dict) -> tuple[list[di
                 "occupancy": occupancy, "cap": cap, "discount_rate": percent_from_fraction(cell(portfolio, 12, row)),
                 "terminal_cap_rate": percent_from_fraction(cell(portfolio, 13, row)),
                 "noi": number_or_none(cell(income, income_col, noi_row)) if income_col else None,
-                "source": {"document": f"第{period['period_no']}期 物件毎データ", "period": period["period"],
-                           "as_of_date": period["as_of_date"], "url": common["library_url"],
-                           "download_url": period["download_url"], "sha256": sha256, "cells": source_cells}
-            })
+                "source": source,
+            }
+            record["evidence"] = metric_evidence(record, source, source_cells, parser_name="nbf_excel")
+            snapshots.append(record)
         row += 1
     reconciliation = source_reconciliation(portfolio, total_row, snapshots)
     for field, item in reconciliation.items():
@@ -249,8 +260,8 @@ def main() -> int:
         return 2
 
     common = json.loads((ROOT / "config/sources.json").read_text(encoding="utf-8"))["nbf"]
-    raw_dir, data_dir = ROOT / "sources/raw", ROOT / "data"
-    raw_dir.mkdir(parents=True, exist_ok=True); data_dir.mkdir(parents=True, exist_ok=True)
+    ensure_private_dirs()
+    raw_dir, data_dir = RAW_DIR, NORMALIZED_DIR
     all_snapshots, period_reports, issues = [], [], []
     for period in common["periods"]:
         source_path = raw_dir / period["local_filename"]
@@ -265,7 +276,7 @@ def main() -> int:
     history_by_key = {}
     for snapshot in all_snapshots:
         history_by_key.setdefault(snapshot["key"], []).append(snapshot)
-    cache_path = data_dir / "geocode-cache.json"
+    cache_path = CACHE_DIR / "geocode-cache.json"
     cache = json.loads(cache_path.read_text(encoding="utf-8")) if cache_path.exists() else {}
     properties = []
     for current in latest:
@@ -298,7 +309,7 @@ def main() -> int:
               "period_reports": period_reports, "issues": issues}
     (data_dir / "nbf-properties.json").write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
     (data_dir / "properties.json").write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
-    (data_dir / "import-report.json").write_text(json.dumps(report, ensure_ascii=False, indent=2), encoding="utf-8")
+    (REPORTS_DIR / "import-report.json").write_text(json.dumps(report, ensure_ascii=False, indent=2), encoding="utf-8")
     print(json.dumps(report, ensure_ascii=False, indent=2))
     return 0 if len(properties) > 0 and not issues else 1
 

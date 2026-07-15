@@ -1,0 +1,41 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.invalid/pip/canonical-property-period.schema.json",
+  "title": "PIP Canonical Property Period v1.0",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["record_version", "property_id", "reit_code", "reporting_period", "metrics", "evidence", "quality"],
+  "properties": {
+    "record_version": {"const": "1.0"},
+    "property_id": {"type": "string", "minLength": 1},
+    "reit_code": {"type": "string", "pattern": "^[0-9]{4}$"},
+    "reporting_period": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["label", "as_of_date"],
+      "properties": {
+        "label": {"type": "string", "minLength": 1},
+        "as_of_date": {"type": "string", "format": "date"}
+      }
+    },
+    "metrics": {
+      "type": "object",
+      "minProperties": 1,
+      "additionalProperties": {"type": ["number", "null"]}
+    },
+    "evidence": {
+      "type": "object",
+      "minProperties": 1,
+      "additionalProperties": {"$ref": "source-evidence.schema.json"}
+    },
+    "quality": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["status", "warnings"],
+      "properties": {
+        "status": {"enum": ["candidate", "validated", "review_required", "rejected"]},
+        "warnings": {"type": "array", "items": {"type": "string"}}
+      }
+    }
+  }
+}

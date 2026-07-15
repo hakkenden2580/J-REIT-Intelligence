@@ -1,0 +1,17 @@
+{
+  "dictionary_version": "1.0",
+  "canonical_currency": "JPY",
+  "metrics": {
+    "acquisition_price_million_yen": {"unit": "million_jpy", "label_ja": "取得価格", "kind": "observed"},
+    "book_value_million_yen": {"unit": "million_jpy", "label_ja": "期末簿価", "kind": "observed"},
+    "appraisal_value_million_yen": {"unit": "million_jpy", "label_ja": "鑑定評価額", "kind": "observed"},
+    "leasable_area_sqm": {"unit": "sqm", "label_ja": "賃貸可能面積", "kind": "observed"},
+    "leased_area_sqm": {"unit": "sqm", "label_ja": "賃貸面積", "kind": "observed"},
+    "tenant_count": {"unit": "count", "label_ja": "テナント数", "kind": "observed"},
+    "occupancy_rate_percent": {"unit": "percent", "label_ja": "稼働率", "kind": "observed"},
+    "cap_rate_percent": {"unit": "percent", "label_ja": "直接還元利回り", "kind": "observed"},
+    "discount_rate_percent": {"unit": "percent", "label_ja": "割引率", "kind": "observed"},
+    "terminal_cap_rate_percent": {"unit": "percent", "label_ja": "最終還元利回り", "kind": "observed"},
+    "noi_million_yen": {"unit": "million_jpy", "label_ja": "NOI", "kind": "observed"}
+  }
+}

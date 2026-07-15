@@ -14,10 +14,19 @@ const metrics={
   occupancy:{label:"稼働率",short:"稼働率",format:pct,color:"#7c3aed"},
   appraisal:{label:"鑑定評価額",short:"鑑定評価額",format:yen,color:"#dc6b19"}
 };
+const evidenceLabels={price:"取得価格",book_value:"期末簿価",appraisal:"鑑定評価額",leasable_area:"賃貸可能面積",leased_area:"賃貸面積",tenants:"テナント数",occupancy:"稼働率",cap:"直接還元利回り",discount_rate:"割引率",terminal_cap_rate:"最終還元利回り",noi:"NOI"};
+
+function sourcePanel(p){
+  const src=p.source;if(!src)return'<div class="source">デモデータ（架空）。実データとして利用しないでください。</div>';
+  const entries=Object.entries(p.evidence||{}).map(([field,item])=>{const loc=item.locator||{};const position=[loc.page?`p.${loc.page}`:"",loc.sheet||"",loc.cell||loc.cell_range||""].filter(Boolean).join(" / ");return`<li><b>${esc(evidenceLabels[field]||field)}</b><br><code>${esc(position||"位置情報なし")}</code>・${esc(item.unit||"")}・${esc(item.review?.status||"未確認")}</li>`}).join("");
+  const legacy=!entries?Object.entries(src.cells||{}).filter(([,v])=>v).map(([k,v])=>`<li><b>${esc(evidenceLabels[k]||k)}</b><br><code>${esc(v)}</code></li>`).join(""):"";
+  const retrieved=src.retrieved_at?new Date(src.retrieved_at).toLocaleString("ja-JP"):"未記録";
+  return`<div class="source"><b>出典・Evidence</b><p>${esc(src.document||src.title)}・${esc(src.period)}</p><p>取得日時：${esc(retrieved)}<br>SHA-256：<code>${esc((src.sha256||"").slice(0,16))}${src.sha256?"…":"未記録"}</code></p><a href="${esc(src.url)}" target="_blank" rel="noopener">公式IRライブラリを開く</a><details><summary>数値ごとの抽出位置</summary><ul>${entries||legacy||"<li>位置情報なし</li>"}</ul></details></div>`;
+}
 
 async function loadData(){
   let payload;
-  try{const res=await fetch("data/properties.json",{cache:"no-store"});if(!res.ok)throw new Error();payload=await res.json()}
+  try{const res=await fetch("runtime-data/properties.json",{cache:"no-store"});if(!res.ok)throw new Error();payload=await res.json()}
   catch{payload=await (await fetch("data/demo-properties.json")).json()}
   properties=payload.properties.map(p=>({...p,periods:p.periods?.length?p.periods:[{period_no:null,period:"最新",as_of_date:null,cap:p.cap,noi:p.noi,occupancy:p.occupancy,appraisal:p.appraisal}]}));
   visible=[...properties];
@@ -48,12 +57,10 @@ function comparablesFor(p){return properties.filter(x=>x.id!==p.id&&x.type===p.t
 
 function selectProperty(p){
   selected=p;
-  const src=p.source;
-  const evidence=src?Object.entries(src.cells||{}).filter(([,v])=>v).map(([k,v])=>`<li><code>${esc(k)}</code> ${esc(v)}</li>`).join(""):"";
   const defaultMetric=Object.keys(metrics).find(key=>p.periods.some(period=>period[key]!=null))||"appraisal";
   const metricOptions=Object.entries(metrics).map(([key,item])=>`<option value="${key}"${key===defaultMetric?" selected":""}>${item.label}</option>`).join("");
   const comparableCards=comparablesFor(p).map(item=>`<button class="comparable" data-property-id="${esc(item.property.id)}"><span class="score">類似度 ${item.score}</span><b>${esc(item.property.name)}</b><small>${item.distance==null?"距離不明":`${item.distance.toFixed(1)}km`}・CR ${pct(item.property.cap)}・${area(item.property.leasable_area)}</small></button>`).join("");
-  document.querySelector("#detail").innerHTML=`<h2>${esc(p.name)}</h2><div class="address">${esc(p.address)}</div><div><span class="pill">${esc(p.type)}</span>${p.geocode?.quality==="automatic"?'<span class="pill neutral">座標：自動取得</span>':""}</div><div class="metrics"><div class="metric"><span>取得価格</span><b>${yen(p.price)}</b></div><div class="metric"><span>鑑定評価額</span><b>${yen(p.appraisal)}</b></div><div class="metric"><span>直接還元利回り（CR）</span><b>${pct(p.cap)}</b></div><div class="metric"><span>稼働率</span><b>${pct(p.occupancy)}</b></div><div class="metric"><span>NOI（当期）</span><b>${yen(p.noi)}</b></div><div class="metric"><span>期末簿価</span><b>${yen(p.book_value)}</b></div><div class="metric"><span>賃貸可能面積</span><b>${area(p.leasable_area)}</b></div><div class="metric"><span>テナント数</span><b>${text(p.tenants)}</b></div></div><section class="analysis"><div class="analysis-heading"><div><span class="eyebrow">HISTORY</span><h3>物件データの推移</h3></div><select id="historyMetric" aria-label="推移指標">${metricOptions}</select></div><canvas id="historyChart" aria-label="物件データ推移グラフ"></canvas><div id="historySummary"></div></section><section class="analysis"><div class="analysis-heading"><div><span class="eyebrow">COMPARABLES</span><h3>類似物件 上位5件</h3></div></div><p class="method">距離35%、面積25%、取得価格15%、CR15%、稼働率10%で算出</p><div class="comparable-list">${comparableCards||'<p class="empty">比較できる物件がありません。</p>'}</div></section>${src?`<div class="source"><b>出典</b><p>${esc(src.document)}・${esc(src.period)}</p><a href="${esc(src.url)}" target="_blank" rel="noopener">公式IRライブラリを開く</a><details><summary>最新期のセル位置</summary><ul>${evidence}</ul></details></div>`:'<div class="source">デモデータ（架空）。実データとして利用しないでください。</div>'}`;
+  document.querySelector("#detail").innerHTML=`<h2>${esc(p.name)}</h2><div class="address">${esc(p.address)}</div><div><span class="pill">${esc(p.type)}</span>${p.geocode?.quality==="automatic"?'<span class="pill neutral">座標：自動取得</span>':""}</div><div class="metrics"><div class="metric"><span>取得価格</span><b>${yen(p.price)}</b></div><div class="metric"><span>鑑定評価額</span><b>${yen(p.appraisal)}</b></div><div class="metric"><span>直接還元利回り（CR）</span><b>${pct(p.cap)}</b></div><div class="metric"><span>稼働率</span><b>${pct(p.occupancy)}</b></div><div class="metric"><span>NOI（当期）</span><b>${yen(p.noi)}</b></div><div class="metric"><span>期末簿価</span><b>${yen(p.book_value)}</b></div><div class="metric"><span>賃貸可能面積</span><b>${area(p.leasable_area)}</b></div><div class="metric"><span>テナント数</span><b>${text(p.tenants)}</b></div></div><section class="analysis"><div class="analysis-heading"><div><span class="eyebrow">HISTORY</span><h3>物件データの推移</h3></div><select id="historyMetric" aria-label="推移指標">${metricOptions}</select></div><canvas id="historyChart" aria-label="物件データ推移グラフ"></canvas><div id="historySummary"></div></section><section class="analysis"><div class="analysis-heading"><div><span class="eyebrow">COMPARABLES</span><h3>類似物件 上位5件</h3></div></div><p class="method">距離35%、面積25%、取得価格15%、CR15%、稼働率10%で算出</p><div class="comparable-list">${comparableCards||'<p class="empty">比較できる物件がありません。</p>'}</div></section>${sourcePanel(p)}`;
   const selector=document.querySelector("#historyMetric");selector.onchange=()=>drawHistory(p,selector.value);drawHistory(p,selector.value);
   document.querySelectorAll(".comparable").forEach(button=>button.onclick=()=>selectProperty(properties.find(item=>item.id===button.dataset.propertyId)));
   document.querySelectorAll(".item").forEach(item=>item.classList.toggle("active",item.dataset.id===p.id));

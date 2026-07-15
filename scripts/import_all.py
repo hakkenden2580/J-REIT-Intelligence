@@ -13,8 +13,10 @@ import sys
 from datetime import datetime, timezone
 from pathlib import Path
 
-from import_nbf import (ROOT, canonical_name, cell, col_name, geocode, million_yen,
+from evidence import metric_evidence, source_document
+from import_nbf import (canonical_name, cell, col_name, geocode, million_yen,
                         number_or_none, percent_from_fraction, read_xlsx, request_bytes)
+from runtime_paths import CACHE_DIR, NORMALIZED_DIR, RAW_DIR, REPORTS_DIR, ROOT, ensure_private_dirs
 
 
 def numeric_text(value):
@@ -70,6 +72,15 @@ def parse_jre(path: Path, config: dict, cache: dict) -> tuple[dict, dict]:
                    if isinstance(cell(metric_sheets["book_value"], col, 4), int)]
     period_cols = sorted(period_cols)[-10:]
     latest_no, latest_col = max(period_cols)
+    source_base = source_document(
+        path,
+        publisher=config["reit_name"],
+        title="保有物件データ",
+        period=config["period"],
+        as_of_date=config["as_of_date"],
+        url=config["library_url"],
+        download_url=config["download_url"],
+    )
     properties, issues = [], []
     for row in range(6, 160):
         name, address = cell(base, 2, row), cell(base, 3, row)
@@ -80,8 +91,16 @@ def parse_jre(path: Path, config: dict, cache: dict) -> tuple[dict, dict]:
         geo = geocode(address, cache)
         history = []
         for period_no, col in period_cols:
+            period_label = f"第{period_no}期"
+            period_date = jre_period_date(period_no)
+            source_cells = {key: f"{sheet}!{col_name(col)}{row}" for key, sheet in {
+                "leasable_area":"期末賃貸可能面積", "leased_area":"期末賃貸面積", "occupancy":"期末入居率",
+                "tenants":"期末テナント数", "book_value":"期末簿価", "appraisal":"鑑定機関による期末算定価格",
+                "noi":"ＮＯＩ"}.items()}
+            if period_no == latest_no:
+                source_cells["price"] = f"基礎データ!L{row}"
             values = {
-                "period_no": period_no, "period": f"第{period_no}期", "as_of_date": jre_period_date(period_no),
+                "period_no": period_no, "period": period_label, "as_of_date": period_date,
                 "price": million_yen(cell(base, 12, row)) if period_no == latest_no else None,
                 "leasable_area": number_or_none(cell(metric_sheets["leasable_area"], col, row)),
                 "leased_area": number_or_none(cell(metric_sheets["leased_area"], col, row)),
@@ -91,19 +110,17 @@ def parse_jre(path: Path, config: dict, cache: dict) -> tuple[dict, dict]:
                 "appraisal": number_or_none(cell(metric_sheets["appraisal"], col, row)),
                 "noi": (numeric_text(cell(metric_sheets["noi"], col, row)) or 0) / 1000 if numeric_text(cell(metric_sheets["noi"], col, row)) is not None else None,
                 "cap": None, "discount_rate": None, "terminal_cap_rate": None,
-                "source": {"document": "保有物件データ", "period": f"第{period_no}期", "as_of_date": jre_period_date(period_no),
-                           "url": config["library_url"], "download_url": config["download_url"],
-                           "cells": {key: f"{sheet}!{col_name(col)}{row}" for key, sheet in {
-                               "leasable_area":"期末賃貸可能面積","leased_area":"期末賃貸面積","occupancy":"期末入居率",
-                               "tenants":"期末テナント数","book_value":"期末簿価","appraisal":"鑑定機関による期末算定価格","noi":"ＮＯＩ"}.items()}}
             }
+            source = {**source_base, "period": period_label, "as_of_date": period_date, "cells": source_cells}
+            values["source"] = source
+            values["evidence"] = metric_evidence(values, source, source_cells, parser_name="jre_excel")
             if any(values[key] is not None for key in ("occupancy", "book_value", "appraisal", "noi")):
                 history.append(values)
         if not history:
             issues.append({"property": name, "message": "履歴なし"}); continue
         current = history[-1]
         current_source = current["source"]
-        current_source["cells"].update({"address": f"基礎データ!C{row}", "price": f"基礎データ!L{row}"})
+        current_source["cells"].update({"address": f"基礎データ!C{row}"})
         properties.append({"id": stable_id("JRE", name), "name": name, "reit": config["reit_name"], "reit_code": config["reit_code"],
                            "type": "オフィス", "region": region_from_address(address), "address": address,
                            "lat": geo["lat"], "lng": geo["lng"], "geocode": geo,
@@ -111,7 +128,7 @@ def parse_jre(path: Path, config: dict, cache: dict) -> tuple[dict, dict]:
                            "appraisal": current["appraisal"], "leasable_area": current["leasable_area"],
                            "leased_area": current["leased_area"], "tenants": current["tenants"], "occupancy": current["occupancy"],
                            "cap": None, "discount_rate": None, "terminal_cap_rate": None, "noi": current["noi"],
-                           "source": current_source, "periods": history})
+                           "source": current_source, "evidence": current["evidence"], "periods": history})
     payload = {"meta": {"dataset": "jre-official-local", "label": f"JRE 第{latest_no}期・過去{len(period_cols)}期",
                         "reit_code": config["reit_code"], "as_of_date": config["as_of_date"], "periods": len(period_cols),
                         "source_url": config["library_url"], "notice": "利用者のMac内で変換したローカル分析用データ。"},
@@ -127,6 +144,15 @@ def parse_glp(path: Path, config: dict, cache: dict) -> tuple[dict, dict]:
     portfolio, appraisal, income = sheets["ポートフォリオ一覧"], sheets["鑑定評価額一覧"], sheets["賃貸借の概況及び損益状況"]
     appraisal_rows = {str(cell(appraisal, 1, row)).strip(): row for row in range(7, 180) if cell(appraisal, 1, row)}
     income_cols = {str(cell(income, col, 5)).strip(): col for col in range(5, 160) if cell(income, col, 5)}
+    source_base = source_document(
+        path,
+        publisher=config["reit_name"],
+        title="第28期 物件データ",
+        period="第28期",
+        as_of_date="2026-02-28",
+        url=config["library_url"],
+        download_url=config["download_url"],
+    )
     properties, issues = [], []
     for row in range(6, 180):
         property_no, name, address = cell(portfolio, 1, row), cell(portfolio, 2, row), cell(portfolio, 3, row)
@@ -141,6 +167,18 @@ def parse_glp(path: Path, config: dict, cache: dict) -> tuple[dict, dict]:
         geo = geocode(address, cache)
         current_cap = percent_from_fraction(cell(appraisal, 6, appraisal_row)) if appraisal_row else None
         previous_cap = percent_from_fraction(cell(appraisal, 14, appraisal_row)) if appraisal_row else None
+        current_cells = {
+            "address": f"ポートフォリオ一覧!C{row}", "price": f"ポートフォリオ一覧!E{row}",
+            "leasable_area": f"ポートフォリオ一覧!G{row}", "leased_area": f"ポートフォリオ一覧!H{row}",
+            "occupancy": f"ポートフォリオ一覧!I{row}", "tenants": f"ポートフォリオ一覧!J{row}",
+            "appraisal": f"鑑定評価額一覧!C{appraisal_row}" if appraisal_row else None,
+            "cap": f"鑑定評価額一覧!F{appraisal_row}" if appraisal_row else None,
+            "discount_rate": f"鑑定評価額一覧!I{appraisal_row}" if appraisal_row else None,
+            "terminal_cap_rate": f"鑑定評価額一覧!J{appraisal_row}" if appraisal_row else None,
+            "book_value": f"鑑定評価額一覧!K{appraisal_row}" if appraisal_row else None,
+            "noi": f"賃貸借の概況及び損益状況!{col_name(income_col)}16" if income_col else None,
+        }
+        current_source = {**source_base, "cells": current_cells}
         current = {
             "period_no": 28, "period": "第28期", "as_of_date": "2026-02-28", "price": number_or_none(cell(portfolio, 5, row)),
             "book_value": number_or_none(cell(appraisal, 11, appraisal_row)) if appraisal_row else None,
@@ -150,29 +188,25 @@ def parse_glp(path: Path, config: dict, cache: dict) -> tuple[dict, dict]:
             "cap": current_cap, "discount_rate": percent_from_fraction(cell(appraisal, 9, appraisal_row)) if appraisal_row else None,
             "terminal_cap_rate": percent_from_fraction(cell(appraisal, 10, appraisal_row)) if appraisal_row else None,
             "noi": (numeric_text(cell(income, income_col, 16)) / 1000) if income_col and numeric_text(cell(income, income_col, 16)) is not None else None,
-            "source": {"document": "第28期 物件データ", "period": "第28期", "as_of_date": "2026-02-28",
-                       "url": config["library_url"], "download_url": config["download_url"],
-                       "cells": {"address": f"ポートフォリオ一覧!C{row}", "price": f"ポートフォリオ一覧!E{row}",
-                                 "leasable_area": f"ポートフォリオ一覧!G{row}", "leased_area": f"ポートフォリオ一覧!H{row}",
-                                 "occupancy": f"ポートフォリオ一覧!I{row}", "tenants": f"ポートフォリオ一覧!J{row}",
-                                 "appraisal": f"鑑定評価額一覧!C{appraisal_row}" if appraisal_row else None,
-                                 "cap": f"鑑定評価額一覧!F{appraisal_row}" if appraisal_row else None,
-                                 "book_value": f"鑑定評価額一覧!K{appraisal_row}" if appraisal_row else None,
-                                 "noi": f"賃貸借の概況及び損益状況!{col_name(income_col)}16" if income_col else None}}
+            "source": current_source,
         }
+        current["evidence"] = metric_evidence(current, current_source, current_cells, parser_name="glp_excel")
+        previous_cells = {
+            "appraisal": f"鑑定評価額一覧!M{appraisal_row}" if appraisal_row else None,
+            "cap": f"鑑定評価額一覧!N{appraisal_row}" if appraisal_row else None,
+        }
+        previous_source = {**source_base, "document": "第28期 物件データ（前期比較欄）", "title": "第28期 物件データ（前期比較欄）",
+                           "period": "第27期", "as_of_date": "2025-08-31", "cells": previous_cells}
         previous = {"period_no": 27, "period": "第27期", "as_of_date": "2025-08-31", "price": None, "book_value": None,
                     "appraisal": number_or_none(cell(appraisal, 13, appraisal_row)) if appraisal_row else None,
                     "leasable_area": None, "leased_area": None, "occupancy": None, "tenants": None, "cap": previous_cap,
-                    "discount_rate": None, "terminal_cap_rate": None, "noi": None,
-                    "source": {"document": "第28期 物件データ（前期比較欄）", "period": "第27期", "as_of_date": "2025-08-31",
-                               "url": config["library_url"], "download_url": config["download_url"],
-                               "cells": {"appraisal": f"鑑定評価額一覧!M{appraisal_row}" if appraisal_row else None,
-                                         "cap": f"鑑定評価額一覧!N{appraisal_row}" if appraisal_row else None}}}
+                    "discount_rate": None, "terminal_cap_rate": None, "noi": None, "source": previous_source}
+        previous["evidence"] = metric_evidence(previous, previous_source, previous_cells, parser_name="glp_excel")
         region = "関東圏" if property_no.startswith("関東圏") else "関西圏" if property_no.startswith("関西圏") else "その他"
         properties.append({"id": stable_id("GLP", name), "name": name, "reit": config["reit_name"], "reit_code": config["reit_code"],
                            "type": "物流", "region": region, "address": address, "lat": geo["lat"], "lng": geo["lng"], "geocode": geo,
                            **{key: current[key] for key in ("price","book_value","appraisal","leasable_area","leased_area","occupancy","tenants","cap","discount_rate","terminal_cap_rate","noi")},
-                           "source": current["source"], "periods": [previous, current]})
+                           "source": current["source"], "evidence": current["evidence"], "periods": [previous, current]})
     payload = {"meta": {"dataset": "glp-official-local", "label": "GLP 第28期", "reit_code": config["reit_code"],
                         "as_of_date": config["as_of_date"], "periods": 2, "source_url": config["library_url"],
                         "notice": "利用者のMac内で変換したローカル分析用データ。公開・再配布しないでください。"},
@@ -191,12 +225,13 @@ def main() -> int:
     if not args.accept_source_terms:
         print("中止: 各公式ファイルの利用上の注意を確認後、--accept-source-terms を付けてください。", file=sys.stderr)
         return 2
+    ensure_private_dirs()
     nbf_command = [sys.executable, str(ROOT / "scripts/import_nbf.py"), "--accept-source-terms"]
     if args.refresh: nbf_command.append("--refresh")
     subprocess.run(nbf_command, cwd=ROOT, check=True, stdout=subprocess.DEVNULL)
     configs = json.loads((ROOT / "config/sources.json").read_text(encoding="utf-8"))
-    raw_dir, data_dir = ROOT / "sources/raw", ROOT / "data"
-    cache_path = data_dir / "geocode-cache.json"
+    raw_dir, data_dir = RAW_DIR, NORMALIZED_DIR
+    cache_path = CACHE_DIR / "geocode-cache.json"
     cache = json.loads(cache_path.read_text(encoding="utf-8")) if cache_path.exists() else {}
     results, reports = {}, {}
     for key, parser_fn in (("jre", parse_jre), ("glp", parse_glp)):
@@ -218,7 +253,7 @@ def main() -> int:
     all_report = {"properties": len(combined), "by_reit": {"NBF": len(nbf["properties"]), "JRE": len(results["jre"]["properties"]), "GLP": len(results["glp"]["properties"])},
                   "jre": reports["jre"], "glp": reports["glp"], "issues": reports["jre"]["issues"] + reports["glp"]["issues"]}
     (data_dir / "properties.json").write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
-    (data_dir / "all-import-report.json").write_text(json.dumps(all_report, ensure_ascii=False, indent=2), encoding="utf-8")
+    (REPORTS_DIR / "all-import-report.json").write_text(json.dumps(all_report, ensure_ascii=False, indent=2), encoding="utf-8")
     print(json.dumps(all_report, ensure_ascii=False, indent=2))
     expected = len(combined) == 234 and not all_report["issues"]
     return 0 if expected else 1

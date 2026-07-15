@@ -1,6 +1,7 @@
 .DS_Store
 __pycache__/
 *.py[cod]
+/private-data/
 sources/raw/
 data/properties.json
 data/import-report.json

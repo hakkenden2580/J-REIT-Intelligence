@@ -1,0 +1,27 @@
+{
+  "metric_code": "cap_rate_percent",
+  "value": 4.2,
+  "unit": "percent",
+  "observed_at": "2026-06-30",
+  "source_document_id": "doc-0123456789abcdefabcd",
+  "retrieved_at": "2026-07-15T00:00:00+00:00",
+  "locator": {
+    "type": "excel_cell",
+    "page": null,
+    "sheet": "架空鑑定データ",
+    "cell": "G12",
+    "cell_range": "G12",
+    "bbox": null
+  },
+  "extraction": {
+    "parser": "fictional_excel",
+    "parser_version": "0.5.0",
+    "method": "deterministic_xlsx_xml",
+    "confidence": 1.0
+  },
+  "review": {
+    "status": "pending",
+    "reviewed_by": null,
+    "reviewed_at": null
+  }
+}
