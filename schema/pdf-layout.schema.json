@@ -1,0 +1,32 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.invalid/pip/pdf-layout.schema.json",
+  "title": "PIP PDF Layout v1.0",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["page_count", "text_pages", "low_text_pages", "requires_ocr", "pages", "fingerprint"],
+  "properties": {
+    "page_count": {"type": "integer", "minimum": 0},
+    "text_pages": {"type": "integer", "minimum": 0},
+    "low_text_pages": {"type": "integer", "minimum": 0},
+    "requires_ocr": {"type": "boolean"},
+    "pages": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["page", "width", "height", "character_count", "word_count", "table_count", "image_count"],
+        "properties": {
+          "page": {"type": "integer", "minimum": 1},
+          "width": {"type": "number", "exclusiveMinimum": 0},
+          "height": {"type": "number", "exclusiveMinimum": 0},
+          "character_count": {"type": "integer", "minimum": 0},
+          "word_count": {"type": "integer", "minimum": 0},
+          "table_count": {"type": "integer", "minimum": 0},
+          "image_count": {"type": "integer", "minimum": 0}
+        }
+      }
+    },
+    "fingerprint": {"type": "string", "pattern": "^[a-f0-9]{64}$"}
+  }
+}
