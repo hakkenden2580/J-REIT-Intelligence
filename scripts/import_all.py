@@ -8,15 +8,18 @@ import hashlib
 import json
 import math
 import re
-import subprocess
 import sys
 from datetime import datetime, timezone
 from pathlib import Path
 
+from data_engine import (AdapterRegistry, ImportContext, NbfWorkbookSetAdapter,
+                         SingleWorkbookExcelAdapter, execute_import_run)
 from evidence import metric_evidence, source_document
 from import_nbf import (canonical_name, cell, col_name, geocode, million_yen,
                         number_or_none, percent_from_fraction, read_xlsx, request_bytes)
-from runtime_paths import CACHE_DIR, NORMALIZED_DIR, RAW_DIR, REPORTS_DIR, ROOT, ensure_private_dirs
+from runtime_paths import (CACHE_DIR, NORMALIZED_DIR, PRIVATE_DATA_DIR,
+                           QUARANTINE_DIR, RAW_DIR, REPORTS_DIR, ROOT,
+                           ensure_private_dirs)
 
 
 def numeric_text(value):
@@ -226,36 +229,57 @@ def main() -> int:
         print("中止: 各公式ファイルの利用上の注意を確認後、--accept-source-terms を付けてください。", file=sys.stderr)
         return 2
     ensure_private_dirs()
-    nbf_command = [sys.executable, str(ROOT / "scripts/import_nbf.py"), "--accept-source-terms"]
-    if args.refresh: nbf_command.append("--refresh")
-    subprocess.run(nbf_command, cwd=ROOT, check=True, stdout=subprocess.DEVNULL)
     configs = json.loads((ROOT / "config/sources.json").read_text(encoding="utf-8"))
-    raw_dir, data_dir = RAW_DIR, NORMALIZED_DIR
     cache_path = CACHE_DIR / "geocode-cache.json"
     cache = json.loads(cache_path.read_text(encoding="utf-8")) if cache_path.exists() else {}
-    results, reports = {}, {}
-    for key, parser_fn in (("jre", parse_jre), ("glp", parse_glp)):
-        config = configs[key]; path = raw_dir / config["local_filename"]
-        if args.refresh or not path.exists():
-            print(f"download: {config['reit_name']} {config['period']}", file=sys.stderr)
-            path.write_bytes(request_bytes(config["download_url"]))
-        payload, report = parser_fn(path, config, cache)
-        results[key], reports[key] = payload, report
-        (data_dir / f"{key}-properties.json").write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
+    context = ImportContext(
+        root=ROOT,
+        private_data_dir=PRIVATE_DATA_DIR,
+        raw_dir=RAW_DIR,
+        normalized_dir=NORMALIZED_DIR,
+        cache_dir=CACHE_DIR,
+        reports_dir=REPORTS_DIR,
+        quarantine_dir=QUARANTINE_DIR,
+        refresh=args.refresh,
+        shared_state={"geocode_cache": cache},
+    )
+    registry = AdapterRegistry()
+    registry.register(NbfWorkbookSetAdapter(
+        config=configs["nbf"], request_bytes=request_bytes, read_xlsx=read_xlsx
+    ))
+    registry.register(SingleWorkbookExcelAdapter(
+        source_key="jre", config=configs["jre"], parser=parse_jre,
+        request_bytes=request_bytes, read_xlsx=read_xlsx,
+        required_sheets=("基礎データ", "期末賃貸可能面積", "期末賃貸面積", "期末入居率",
+                         "期末テナント数", "期末簿価", "鑑定機関による期末算定価格", "ＮＯＩ"),
+        title="保有物件データ",
+    ))
+    registry.register(SingleWorkbookExcelAdapter(
+        source_key="glp", config=configs["glp"], parser=parse_glp,
+        request_bytes=request_bytes, read_xlsx=read_xlsx,
+        required_sheets=("ポートフォリオ一覧", "鑑定評価額一覧", "賃貸借の概況及び損益状況"),
+        title="物件データ",
+    ))
+    results, import_run = execute_import_run(registry.select(["nbf", "jre", "glp"]), context)
     cache_path.write_text(json.dumps(cache, ensure_ascii=False, indent=2), encoding="utf-8")
-    nbf = json.loads((data_dir / "nbf-properties.json").read_text(encoding="utf-8"))
-    combined = nbf["properties"] + results["jre"]["properties"] + results["glp"]["properties"]
+    nbf = results["nbf"].payload
+    jre = results["jre"].payload
+    glp = results["glp"].payload
+    combined = nbf["properties"] + jre["properties"] + glp["properties"]
     payload = {"meta": {"dataset": "multi-reit-official-local", "label": "NBF・JRE・GLP 横断データ",
-                        "reit_codes": ["8951","8952","3281"], "as_of_date": max(nbf["meta"]["as_of_date"],results["jre"]["meta"]["as_of_date"],results["glp"]["meta"]["as_of_date"]),
+                        "reit_codes": ["8951","8952","3281"], "as_of_date": max(nbf["meta"]["as_of_date"],jre["meta"]["as_of_date"],glp["meta"]["as_of_date"]),
                         "generated_at": datetime.now(timezone.utc).isoformat(),
+                        "data_engine_version": "0.6.0", "import_run_id": import_run["run_id"],
                         "notice": "各社公式ファイルを利用者のMac内で変換したローカル分析用データ。公開・再配布しないでください。"},
                "properties": combined}
-    all_report = {"properties": len(combined), "by_reit": {"NBF": len(nbf["properties"]), "JRE": len(results["jre"]["properties"]), "GLP": len(results["glp"]["properties"])},
-                  "jre": reports["jre"], "glp": reports["glp"], "issues": reports["jre"]["issues"] + reports["glp"]["issues"]}
-    (data_dir / "properties.json").write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
+    all_report = {"properties": len(combined), "by_reit": {"NBF": len(nbf["properties"]), "JRE": len(jre["properties"]), "GLP": len(glp["properties"])},
+                  "import_run": import_run,
+                  "nbf": results["nbf"].report, "jre": results["jre"].report, "glp": results["glp"].report,
+                  "issues": results["nbf"].issues + results["jre"].issues + results["glp"].issues}
+    (NORMALIZED_DIR / "properties.json").write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
     (REPORTS_DIR / "all-import-report.json").write_text(json.dumps(all_report, ensure_ascii=False, indent=2), encoding="utf-8")
     print(json.dumps(all_report, ensure_ascii=False, indent=2))
-    expected = len(combined) == 234 and not all_report["issues"]
+    expected = all(result.payload.get("properties") for result in results.values()) and not all_report["issues"]
     return 0 if expected else 1
 
 

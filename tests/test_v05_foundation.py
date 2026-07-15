@@ -10,7 +10,7 @@ sys.path.insert(0, str(ROOT / "scripts"))
 
 from check_git_boundary import tracked_files, violations
 from evidence import metric_evidence
-from serve_local import is_blocked_path, normalized_request_path
+from serve_local import is_blocked_path, normalized_request_path, sanitized_import_status
 
 
 class EvidenceContractTests(unittest.TestCase):
@@ -50,6 +50,18 @@ class GitBoundaryTests(unittest.TestCase):
         ):
             self.assertTrue(is_blocked_path(normalized_request_path(path)), path)
         self.assertFalse(is_blocked_path(normalized_request_path("/data/demo-properties.json")))
+
+    def test_runtime_import_status_excludes_source_details(self):
+        status = sanitized_import_status({
+            "run_id": "run-fictional", "status": "succeeded", "finished_at": "2026-07-15T00:00:00+00:00",
+            "same_inputs_as_run_id": "run-previous", "layout_statuses": {"fictional": "unchanged"},
+            "totals": {"adapters": 1, "properties": 1, "issues": 0},
+            "idempotency_key": "secret", "adapters": [{"source_assets": [{"download_url": "secret"}]}],
+        })
+        self.assertEqual(status["layout_status"], "unchanged")
+        self.assertTrue(status["same_inputs"])
+        self.assertNotIn("idempotency_key", status)
+        self.assertNotIn("adapters", status)
 
 
 if __name__ == "__main__":

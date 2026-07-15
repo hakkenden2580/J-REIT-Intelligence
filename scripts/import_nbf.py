@@ -28,7 +28,7 @@ NS = {"m": "http://schemas.openxmlformats.org/spreadsheetml/2006/main"}
 REL_NS = {"r": "http://schemas.openxmlformats.org/package/2006/relationships"}
 DOC_REL = "http://schemas.openxmlformats.org/officeDocument/2006/relationships"
 GSI_URL = "https://msearch.gsi.go.jp/address-search/AddressSearch"
-USER_AGENT = "J-REIT-Intelligence/0.5 local research prototype"
+USER_AGENT = "J-REIT-Intelligence/0.6 local research prototype"
 
 
 def request_bytes(url: str) -> bytes:

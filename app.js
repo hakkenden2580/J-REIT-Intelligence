@@ -16,6 +16,17 @@ const metrics={
 };
 const evidenceLabels={price:"取得価格",book_value:"期末簿価",appraisal:"鑑定評価額",leasable_area:"賃貸可能面積",leased_area:"賃貸面積",tenants:"テナント数",occupancy:"稼働率",cap:"直接還元利回り",discount_rate:"割引率",terminal_cap_rate:"最終還元利回り",noi:"NOI"};
 
+async function loadImportStatus(){
+  const badge=document.querySelector("#engineStatus");
+  try{
+    const res=await fetch("runtime-data/import-status.json",{cache:"no-store"});if(!res.ok)return;
+    const status=await res.json(),totals=status.totals||{};
+    const layout=status.layout_status==="changed"?"レイアウト変更あり":status.layout_status==="unchanged"?"レイアウト正常":"初回レイアウト";
+    badge.textContent=`取込成功・${totals.properties??0}物件・${layout}`;
+    badge.classList.toggle("warning",status.layout_status==="changed");badge.hidden=false;
+  }catch{badge.hidden=true}
+}
+
 function sourcePanel(p){
   const src=p.source;if(!src)return'<div class="source">デモデータ（架空）。実データとして利用しないでください。</div>';
   const entries=Object.entries(p.evidence||{}).map(([field,item])=>{const loc=item.locator||{};const position=[loc.page?`p.${loc.page}`:"",loc.sheet||"",loc.cell||loc.cell_range||""].filter(Boolean).join(" / ");return`<li><b>${esc(evidenceLabels[field]||field)}</b><br><code>${esc(position||"位置情報なし")}</code>・${esc(item.unit||"")}・${esc(item.review?.status||"未確認")}</li>`}).join("");
@@ -100,3 +111,4 @@ document.querySelector("#search").oninput=render;reitFilter.onchange=render;type
 document.querySelector("#export").onclick=()=>{if(!visible.length)return;const keys=["id","reit_code","reit","name","type","region","address","lat","lng","price","book_value","appraisal","cap","discount_rate","terminal_cap_rate","occupancy","noi","leasable_area","leased_area","tenants"];const csv=[keys.join(","),...visible.map(p=>keys.map(k=>`"${String(p[k]??"").replaceAll('"','""')}"`).join(","))].join("\n");const a=document.createElement("a");a.href=URL.createObjectURL(new Blob(["\ufeff"+csv],{type:"text/csv"}));a.download="jreit-properties.csv";a.click();URL.revokeObjectURL(a.href)};
 window.addEventListener("resize",()=>{if(selected){const metric=document.querySelector("#historyMetric");if(metric)drawHistory(selected,metric.value)}});
 loadData().catch(err=>{document.querySelector("#dataset").textContent="読込エラー";document.querySelector("#detail").innerHTML=`<p class="error">データを読み込めませんでした。${esc(err.message)}</p>`});
+loadImportStatus();
