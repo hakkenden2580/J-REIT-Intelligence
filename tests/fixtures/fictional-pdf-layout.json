@@ -1,0 +1,11 @@
+{
+  "page_count": 2,
+  "text_pages": 2,
+  "low_text_pages": 0,
+  "requires_ocr": false,
+  "pages": [
+    {"page": 1, "width": 595.3, "height": 841.9, "character_count": 120, "word_count": 20, "table_count": 1, "image_count": 0},
+    {"page": 2, "width": 595.3, "height": 841.9, "character_count": 80, "word_count": 12, "table_count": 0, "image_count": 0}
+  ],
+  "fingerprint": "1111111111111111111111111111111111111111111111111111111111111111"
+}
