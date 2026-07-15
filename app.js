@@ -15,6 +15,7 @@ const metrics={
   appraisal:{label:"鑑定評価額",short:"鑑定評価額",format:yen,color:"#dc6b19"}
 };
 const evidenceLabels={price:"取得価格",book_value:"期末簿価",appraisal:"鑑定評価額",leasable_area:"賃貸可能面積",leased_area:"賃貸面積",tenants:"テナント数",occupancy:"稼働率",cap:"直接還元利回り",discount_rate:"割引率",terminal_cap_rate:"最終還元利回り",noi:"NOI"};
+const checkLabels={unique_property_id:"物件ID重複",required_fields:"必須項目",numeric_ranges:"数値範囲",evidence_completeness:"Evidence",coordinates:"座標",leased_area_consistency:"面積整合"};
 
 async function loadImportStatus(){
   const badge=document.querySelector("#engineStatus");
@@ -25,6 +26,31 @@ async function loadImportStatus(){
     badge.textContent=`取込成功・${totals.properties??0}物件・${layout}`;
     badge.classList.toggle("warning",status.layout_status==="changed");badge.hidden=false;
   }catch{badge.hidden=true}
+}
+
+async function loadQualityStatus(){
+  const button=document.querySelector("#qualityButton"),dialog=document.querySelector("#qualityDialog"),content=document.querySelector("#qualityContent");
+  try{
+    const res=await fetch("runtime-data/quality-status.json",{cache:"no-store"});if(!res.ok)return;
+    const report=await res.json(),totals=report.totals||{};
+    const statusText=report.status==="passed"?"合格":report.status==="warning"?"要確認":"不合格";
+    button.textContent=`品質 ${statusText}・Evidence ${Number(totals.evidence_coverage_percent||0).toFixed(1)}%`;
+    button.className=`quality-button ${report.status||"failed"}`;button.hidden=false;
+    const cards=[
+      ["物件",`${Number(totals.properties||0).toLocaleString("ja-JP")}件`],
+      ["時点データ",`${Number(totals.periods||0).toLocaleString("ja-JP")}件`],
+      ["Evidence",`${Number(totals.evidence_coverage_percent||0).toFixed(1)}%`],
+      ["座標",`${Number(totals.coordinate_coverage_percent||0).toFixed(1)}%`],
+      ["エラー",Number(totals.errors||0).toLocaleString("ja-JP")],
+      ["警告",Number(totals.warnings||0).toLocaleString("ja-JP")],
+    ].map(([label,value])=>`<div><span>${esc(label)}</span><b>${esc(value)}</b></div>`).join("");
+    const checks=(report.checks||[]).map(item=>`<tr><td>${esc(checkLabels[item.code]||item.message||item.code)}</td><td><span class="check-status ${esc(item.status)}">${item.status==="passed"?"正常":item.status==="warning"?"要確認":"エラー"}</span></td><td>${Number(item.count||0).toLocaleString("ja-JP")}</td></tr>`).join("");
+    const reits=Object.entries(report.by_reit||{}).map(([name,item])=>`<tr><td>${esc(name)}</td><td>${Number(item.properties||0).toLocaleString("ja-JP")}</td><td>${Number(item.periods||0).toLocaleString("ja-JP")}</td><td>${Number(item.evidence_coverage_percent||0).toFixed(1)}%</td><td>${Number(item.coordinate_coverage_percent||0).toFixed(1)}%</td></tr>`).join("");
+    const metricRows=Object.entries(report.metrics||{}).filter(([,item])=>item.available).map(([code,item])=>`<tr><td>${esc(evidenceLabels[code]||code)}</td><td>${Number(item.available||0).toLocaleString("ja-JP")}</td><td>${Number(item.evidence_complete||0).toLocaleString("ja-JP")}</td><td>${Number(item.coverage_percent||0).toFixed(1)}%</td></tr>`).join("");
+    const generated=report.generated_at?new Date(report.generated_at).toLocaleString("ja-JP"):"未記録";
+    content.innerHTML=`<div class="quality-summary ${esc(report.status)}"><div><span>判定</span><b>${statusText}</b></div><small>検証日時 ${esc(generated)}</small></div><div class="quality-cards">${cards}</div><section class="quality-section"><h3>品質Gate</h3><table><thead><tr><th>検査</th><th>結果</th><th>件数</th></tr></thead><tbody>${checks}</tbody></table></section><section class="quality-section"><h3>投資法人別</h3><div class="table-scroll"><table><thead><tr><th>投資法人</th><th>物件</th><th>時点</th><th>Evidence</th><th>座標</th></tr></thead><tbody>${reits}</tbody></table></div></section><section class="quality-section"><h3>指標別Evidence</h3><div class="table-scroll"><table><thead><tr><th>指標</th><th>数値</th><th>完全</th><th>充足率</th></tr></thead><tbody>${metricRows}</tbody></table></div></section><p class="privacy-note">物件別の問題内容、原本URL、ファイル名、ハッシュはこの画面用APIへ出していません。詳細はMac内のprivate-data/reportsで管理します。</p>`;
+    button.onclick=()=>dialog.showModal();
+  }catch{button.hidden=true}
 }
 
 function sourcePanel(p){
@@ -112,3 +138,4 @@ document.querySelector("#export").onclick=()=>{if(!visible.length)return;const k
 window.addEventListener("resize",()=>{if(selected){const metric=document.querySelector("#historyMetric");if(metric)drawHistory(selected,metric.value)}});
 loadData().catch(err=>{document.querySelector("#dataset").textContent="読込エラー";document.querySelector("#detail").innerHTML=`<p class="error">データを読み込めませんでした。${esc(err.message)}</p>`});
 loadImportStatus();
+loadQualityStatus();

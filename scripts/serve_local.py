@@ -54,6 +54,41 @@ def sanitized_import_status(record: dict) -> dict:
     }
 
 
+def sanitized_quality_status(record: dict) -> dict:
+    """Expose aggregate quality metrics without source or property-level details."""
+    allowed_totals = (
+        "properties", "periods", "numeric_values", "evidence_complete",
+        "evidence_coverage_percent", "with_coordinates",
+        "coordinate_coverage_percent", "duplicate_ids", "errors", "warnings",
+    )
+    totals = record.get("totals", {})
+    metrics = {}
+    for code, item in record.get("metrics", {}).items():
+        metrics[code] = {
+            "available": item.get("available", 0),
+            "evidence_complete": item.get("evidence_complete", 0),
+            "coverage_percent": item.get("coverage_percent", 0),
+        }
+    by_reit = {}
+    for name, item in record.get("by_reit", {}).items():
+        by_reit[name] = {
+            "properties": item.get("properties", 0),
+            "periods": item.get("periods", 0),
+            "evidence_coverage_percent": item.get("evidence_coverage_percent", 0),
+            "coordinate_coverage_percent": item.get("coordinate_coverage_percent", 0),
+        }
+    checks = [{key: item.get(key) for key in ("code", "severity", "status", "count", "message")}
+              for item in record.get("checks", [])]
+    return {
+        "status": record.get("status"),
+        "generated_at": record.get("generated_at"),
+        "totals": {key: totals.get(key, 0) for key in allowed_totals},
+        "by_reit": by_reit,
+        "metrics": metrics,
+        "checks": checks,
+    }
+
+
 class LocalHandler(SimpleHTTPRequestHandler):
     def json_response(self, payload: dict):
         encoded = json.dumps(payload, ensure_ascii=False).encode("utf-8")
@@ -74,6 +109,16 @@ class LocalHandler(SimpleHTTPRequestHandler):
 
     def send_head(self):
         request_path = normalized_request_path(self.path)
+        if request_path == "/runtime-data/quality-status.json":
+            target = REPORTS_DIR / "latest-quality-report.json"
+            if not target.is_file():
+                self.send_error(404, "Quality status not found")
+                return None
+            try:
+                return self.json_response(sanitized_quality_status(json.loads(target.read_text(encoding="utf-8"))))
+            except (OSError, json.JSONDecodeError):
+                self.send_error(500, "Quality status is invalid")
+                return None
         if request_path == "/runtime-data/import-status.json":
             target = REPORTS_DIR / "latest-import-run.json"
             if not target.is_file():

@@ -10,7 +10,8 @@ sys.path.insert(0, str(ROOT / "scripts"))
 
 from check_git_boundary import tracked_files, violations
 from evidence import metric_evidence
-from serve_local import is_blocked_path, normalized_request_path, sanitized_import_status
+from serve_local import (is_blocked_path, normalized_request_path,
+                         sanitized_import_status, sanitized_quality_status)
 
 
 class EvidenceContractTests(unittest.TestCase):
@@ -62,6 +63,17 @@ class GitBoundaryTests(unittest.TestCase):
         self.assertTrue(status["same_inputs"])
         self.assertNotIn("idempotency_key", status)
         self.assertNotIn("adapters", status)
+
+    def test_runtime_quality_status_excludes_property_level_details(self):
+        status = sanitized_quality_status({
+            "status": "warning", "generated_at": "2026-07-15T00:00:00+00:00",
+            "totals": {"properties": 1, "warnings": 1},
+            "by_reit": {}, "metrics": {}, "checks": [],
+            "issue_samples": {"missing_coordinates": ["SECRET-ID"]},
+        })
+        self.assertEqual(status["status"], "warning")
+        self.assertNotIn("issue_samples", status)
+        self.assertNotIn("SECRET-ID", json.dumps(status))
 
 
 if __name__ == "__main__":

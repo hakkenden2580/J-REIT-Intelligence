@@ -1,0 +1,22 @@
+{
+  "schema_version": "1.0",
+  "generated_at": "2026-07-15T00:00:00+00:00",
+  "import_run_id": "run-fictional",
+  "status": "passed",
+  "totals": {
+    "properties": 1,
+    "periods": 1,
+    "numeric_values": 2,
+    "evidence_complete": 2,
+    "evidence_coverage_percent": 100.0,
+    "with_coordinates": 1,
+    "coordinate_coverage_percent": 100.0,
+    "duplicate_ids": 0,
+    "errors": 0,
+    "warnings": 0
+  },
+  "by_reit": {},
+  "metrics": {},
+  "checks": [],
+  "issue_samples": {}
+}

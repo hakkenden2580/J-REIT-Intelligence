@@ -13,7 +13,8 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 from data_engine import (AdapterRegistry, ImportContext, NbfWorkbookSetAdapter,
-                         SingleWorkbookExcelAdapter, execute_import_run)
+                         SingleWorkbookExcelAdapter, evaluate_dataset,
+                         execute_import_run)
 from evidence import metric_evidence, source_document
 from import_nbf import (canonical_name, cell, col_name, geocode, million_yen,
                         number_or_none, percent_from_fraction, read_xlsx, request_bytes)
@@ -169,7 +170,15 @@ def parse_glp(path: Path, config: dict, cache: dict) -> tuple[dict, dict]:
             issues.append({"property": name, "field": "noi", "message": "収益シートを照合できません"})
         geo = geocode(address, cache)
         current_cap = percent_from_fraction(cell(appraisal, 6, appraisal_row)) if appraisal_row else None
+        current_discount = percent_from_fraction(cell(appraisal, 9, appraisal_row)) if appraisal_row else None
+        current_terminal = percent_from_fraction(cell(appraisal, 10, appraisal_row)) if appraisal_row else None
+        # GLP workbook contains explicit zeroes where yield metrics are not applicable.
+        # A 0% cap rate must not be presented as a real valuation observation.
+        current_cap = None if current_cap == 0 else current_cap
+        current_discount = None if current_discount == 0 else current_discount
+        current_terminal = None if current_terminal == 0 else current_terminal
         previous_cap = percent_from_fraction(cell(appraisal, 14, appraisal_row)) if appraisal_row else None
+        previous_cap = None if previous_cap == 0 else previous_cap
         current_cells = {
             "address": f"ポートフォリオ一覧!C{row}", "price": f"ポートフォリオ一覧!E{row}",
             "leasable_area": f"ポートフォリオ一覧!G{row}", "leased_area": f"ポートフォリオ一覧!H{row}",
@@ -188,8 +197,8 @@ def parse_glp(path: Path, config: dict, cache: dict) -> tuple[dict, dict]:
             "appraisal": number_or_none(cell(appraisal, 3, appraisal_row)) if appraisal_row else None,
             "leasable_area": number_or_none(cell(portfolio, 7, row)), "leased_area": number_or_none(cell(portfolio, 8, row)),
             "occupancy": number_or_none(cell(portfolio, 9, row)), "tenants": number_or_none(cell(portfolio, 10, row)),
-            "cap": current_cap, "discount_rate": percent_from_fraction(cell(appraisal, 9, appraisal_row)) if appraisal_row else None,
-            "terminal_cap_rate": percent_from_fraction(cell(appraisal, 10, appraisal_row)) if appraisal_row else None,
+            "cap": current_cap, "discount_rate": current_discount,
+            "terminal_cap_rate": current_terminal,
             "noi": (numeric_text(cell(income, income_col, 16)) / 1000) if income_col and numeric_text(cell(income, income_col, 16)) is not None else None,
             "source": current_source,
         }
@@ -220,10 +229,27 @@ def parse_glp(path: Path, config: dict, cache: dict) -> tuple[dict, dict]:
     return payload, report
 
 
+def cli_summary(report: dict) -> dict:
+    run = report["import_run"]
+    layout_values = set(run.get("layout_statuses", {}).values())
+    layout = "changed" if "changed" in layout_values else "unchanged" if layout_values == {"unchanged"} else "new"
+    return {
+        "status": "succeeded" if report["quality"]["status"] != "failed" else "failed",
+        "properties": report["properties"],
+        "by_reit": report["by_reit"],
+        "import_run_id": run["run_id"],
+        "same_inputs": bool(run.get("same_inputs_as_run_id")),
+        "layout_status": layout,
+        "quality": report["quality"],
+        "adapter_issues": len(report["issues"]),
+    }
+
+
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--accept-source-terms", action="store_true")
     parser.add_argument("--refresh", action="store_true")
+    parser.add_argument("--verbose", action="store_true", help="詳細なAdapter監査情報をターミナルへ表示")
     args = parser.parse_args()
     if not args.accept_source_terms:
         print("中止: 各公式ファイルの利用上の注意を確認後、--accept-source-terms を付けてください。", file=sys.stderr)
@@ -258,7 +284,7 @@ def main() -> int:
         source_key="glp", config=configs["glp"], parser=parse_glp,
         request_bytes=request_bytes, read_xlsx=read_xlsx,
         required_sheets=("ポートフォリオ一覧", "鑑定評価額一覧", "賃貸借の概況及び損益状況"),
-        title="物件データ",
+        title="物件データ", adapter_version="0.7.0",
     ))
     results, import_run = execute_import_run(registry.select(["nbf", "jre", "glp"]), context)
     cache_path.write_text(json.dumps(cache, ensure_ascii=False, indent=2), encoding="utf-8")
@@ -269,16 +295,34 @@ def main() -> int:
     payload = {"meta": {"dataset": "multi-reit-official-local", "label": "NBF・JRE・GLP 横断データ",
                         "reit_codes": ["8951","8952","3281"], "as_of_date": max(nbf["meta"]["as_of_date"],jre["meta"]["as_of_date"],glp["meta"]["as_of_date"]),
                         "generated_at": datetime.now(timezone.utc).isoformat(),
-                        "data_engine_version": "0.6.0", "import_run_id": import_run["run_id"],
+                        "data_engine_version": "0.7.0", "import_run_id": import_run["run_id"],
                         "notice": "各社公式ファイルを利用者のMac内で変換したローカル分析用データ。公開・再配布しないでください。"},
                "properties": combined}
+    quality_report = evaluate_dataset(payload, import_run_id=import_run["run_id"])
+    payload["meta"]["data_quality"] = {
+        "status": quality_report["status"],
+        "evidence_coverage_percent": quality_report["totals"]["evidence_coverage_percent"],
+        "coordinate_coverage_percent": quality_report["totals"]["coordinate_coverage_percent"],
+    }
     all_report = {"properties": len(combined), "by_reit": {"NBF": len(nbf["properties"]), "JRE": len(jre["properties"]), "GLP": len(glp["properties"])},
                   "import_run": import_run,
+                  "quality": {"status": quality_report["status"], "totals": quality_report["totals"]},
                   "nbf": results["nbf"].report, "jre": results["jre"].report, "glp": results["glp"].report,
                   "issues": results["nbf"].issues + results["jre"].issues + results["glp"].issues}
-    (NORMALIZED_DIR / "properties.json").write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
+    quality_name = f"quality-{import_run['run_id']}.json"
+    (REPORTS_DIR / quality_name).write_text(json.dumps(quality_report, ensure_ascii=False, indent=2), encoding="utf-8")
+    (REPORTS_DIR / "latest-quality-report.json").write_text(json.dumps(quality_report, ensure_ascii=False, indent=2), encoding="utf-8")
     (REPORTS_DIR / "all-import-report.json").write_text(json.dumps(all_report, ensure_ascii=False, indent=2), encoding="utf-8")
-    print(json.dumps(all_report, ensure_ascii=False, indent=2))
+    if quality_report["status"] == "failed":
+        quarantine = {"run_id": import_run["run_id"], "reason": "data_quality_failed", "totals": quality_report["totals"]}
+        (QUARANTINE_DIR / f"quality-{import_run['run_id']}.json").write_text(
+            json.dumps(quarantine, ensure_ascii=False, indent=2), encoding="utf-8"
+        )
+        print(json.dumps(all_report if args.verbose else cli_summary(all_report), ensure_ascii=False, indent=2))
+        print("中止: データ品質Gateでエラーを検出したため、既存の正常データは上書きしません。", file=sys.stderr)
+        return 1
+    (NORMALIZED_DIR / "properties.json").write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
+    print(json.dumps(all_report if args.verbose else cli_summary(all_report), ensure_ascii=False, indent=2))
     expected = all(result.payload.get("properties") for result in results.values()) and not all_report["issues"]
     return 0 if expected else 1
 
