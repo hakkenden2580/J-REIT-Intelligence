@@ -132,6 +132,29 @@ class PdfAdapterFoundationTests(unittest.TestCase):
             self.assertEqual(result.layout_reports[0]["validation"]["status"], "compatible")
             self.assertTrue((paths["normalized"] / "fictional-properties.json").is_file())
 
+    def test_pdf_adapter_rejects_output_paths_outside_private_normalized(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            paths = {name: root / name for name in ("raw", "normalized", "cache", "reports", "quarantine")}
+            for path in paths.values():
+                path.mkdir()
+            create_fictional_pdf(paths["raw"] / "fictional.pdf")
+            adapter = LocalPdfAdapter(
+                source_key="fictional",
+                config={
+                    "local_filename": "fictional.pdf", "output_filename": "../escaped.json",
+                    "publisher": "Fictional REIT", "title": "Fictional Report",
+                    "period": "Fictional FY2026", "as_of_date": "2026-06-30",
+                    "min_pages": 2, "required_table_pages": [1],
+                },
+                parser=lambda path, config, layout: ({"properties": []}, {"issues": []}),
+            )
+            context = ImportContext(root=root, private_data_dir=root, raw_dir=paths["raw"],
+                                    normalized_dir=paths["normalized"], cache_dir=paths["cache"],
+                                    reports_dir=paths["reports"], quarantine_dir=paths["quarantine"])
+            with self.assertRaises(ValueError):
+                adapter.run(context)
+
     def test_blank_pdf_is_flagged_for_ocr(self):
         with tempfile.TemporaryDirectory() as temp:
             path = Path(temp) / "scanned-like.pdf"
