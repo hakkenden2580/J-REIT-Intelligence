@@ -1,6 +1,8 @@
 .DS_Store
 __pycache__/
 *.py[cod]
+.venv/
+/tmp/
 /private-data/
 sources/raw/
 data/properties.json
@@ -11,3 +13,6 @@ data/glp-properties.json
 data/all-import-report.json
 data/geocode-cache.json
 work/
+*.pdf
+*.xls
+*.xlsx

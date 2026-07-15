@@ -1,6 +1,6 @@
-# J-REIT Intelligence v0.8
+# J-REIT Intelligence v0.9
 
-Property Intelligence Platform（PIP）の最初のモジュールです。NBF・JRE・GLPを横断し、地図、検索、物件詳細、時系列グラフ、類似物件比較、出典セル表示、CSV出力を備えます。v0.6でData Engine契約、v0.7でData Quality Gate、v0.8で前回の正常データとの差分検出とローカルスナップショットを追加しました。
+Property Intelligence Platform（PIP）の最初のモジュールです。NBF・JRE・GLPを横断し、地図、検索、物件詳細、時系列グラフ、類似物件比較、出典セル表示、CSV出力を備えます。v0.6でData Engine契約、v0.7でData Quality Gate、v0.8でデータ差分検出、v0.9でページ単位Evidenceを持つPDF Adapter基盤を追加しました。
 
 ## データ方針
 
@@ -27,6 +27,8 @@ Git境界は次で確認できます。
 ```bash
 python3 scripts/check_git_boundary.py
 ```
+
+`private-data/`と`sources/raw/`に加え、通常のPDF・XLS・XLSXが誤って別フォルダから追跡される場合も検出します。Gitで許可する文書fixtureは`tests/fixtures/fictional-`から始まる架空データだけです。
 
 ## NBF実データのローカル取込（第40〜49期）
 
@@ -126,6 +128,51 @@ Import Run監査記録
 
 画面上部の「差分」ボタンは投資法人別・指標別の集計だけを表示します。物件名、物件ID、変更前後の数値、原本情報は画面用APIへ出さず、Mac内の詳細レポートに限定します。契約は`schema/dataset-change-report.schema.json`です。
 
+## PDF Adapter基盤 v0.9
+
+PDFはExcelと同じ`SourceAdapter`契約へ接続しますが、本文や表を監査ログ・Git・ブラウザへ出さない設計です。
+
+```text
+private-data/raw/*.pdf
+        ↓
+PDF構造検査（ページ数・寸法・文字量・表数・画像数）
+        ↓
+レイアウト指紋・OCR要否・互換性Gate
+        ↓
+投資法人別PDF Parser
+        ↓
+ページ番号 + bbox付きEvidence
+        ↓
+共通JSON・品質Gate・差分検出
+```
+
+実装済みの基盤は次の通りです。
+
+- `scripts/data_engine/pdf.py`：PDF構造検査、本文のメモリ内抽出、文字位置検索
+- `scripts/data_engine/pdf_adapters.py`：`private-data/raw`専用のPDF Adapter契約
+- `scripts/inspect_pdf.py`：本文や数値を保存せずPDF互換性だけを確認するCLI
+- `schema/pdf-layout.schema.json`：Privacy-safeなPDF構造Schema
+- `evidence.pdf_locator`：1始まりのページ番号とPDF座標を持つEvidence
+- OCRが必要な画像PDFと互換性のないレイアウトの処理停止
+
+PDF機能の依存ライブラリはプロジェクト専用の仮想環境へ一度だけ導入します。
+
+```bash
+python3 -m venv .venv
+source .venv/bin/activate
+python -m pip install -r requirements-pdf.txt
+```
+
+以後、PDF処理を行うターミナルでは最初に`source .venv/bin/activate`を実行します。仮想環境は`.gitignore`対象で、GitHubへ登録されません。
+
+検査するPDFはGitへ置かず、`private-data/raw/`へ保存します。例えば`private-data/raw/fictional-report.pdf`を検査する場合：
+
+```bash
+python3 scripts/inspect_pdf.py --file fictional-report.pdf
+```
+
+検査結果は`private-data/reports/pdf-inspections/`だけに保存されます。本文、表、物件名、CAP、NOI等は検査レポートへ含めません。v0.9は共通基盤であり、実在REITのPDFから物件値を登録するには、資料ごとの表構造を定義したAdapterを次版で追加します。
+
 ## ローカル起動
 
 ```bash
@@ -146,7 +193,7 @@ python3 scripts/serve_local.py
 - Parser名、バージョン、抽出方法、confidence
 - review status、確認者、確認日時
 
-契約は`schema/source-evidence.schema.json`、`schema/canonical-property-period.schema.json`、`schema/metric-dictionary.json`です。現在のExcel AdapterはExcelシート・セルまで記録し、PDFページは今後のPDF Adapterで追加します。
+契約は`schema/source-evidence.schema.json`、`schema/canonical-property-period.schema.json`、`schema/metric-dictionary.json`です。Excel AdapterはExcelシート・セル、PDF Adapter基盤はPDFページとbboxまで記録します。実PDFの数値は資料別Adapterで決定論的に抽出し、confidenceと人手確認状態を保持します。
 
 ## テスト
 

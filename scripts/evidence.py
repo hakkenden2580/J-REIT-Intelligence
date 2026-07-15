@@ -7,7 +7,7 @@ import hashlib
 from datetime import datetime, timezone
 from pathlib import Path
 
-PARSER_VERSION = "0.6.0"
+PARSER_VERSION = "0.9.0"
 
 METRICS = {
     "price": ("acquisition_price_million_yen", "million_jpy"),
@@ -45,6 +45,7 @@ def source_document(
     as_of_date: str,
     url: str,
     download_url: str,
+    media_type: str = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
 ) -> dict:
     checksum = sha256_file(path)
     return {
@@ -58,7 +59,7 @@ def source_document(
         "download_url": download_url,
         "sha256": checksum,
         "retrieved_at": retrieved_at(path),
-        "media_type": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        "media_type": media_type,
     }
 
 
@@ -73,6 +74,55 @@ def excel_locator(reference: str | None) -> dict | None:
         "cell": cell,
         "cell_range": cell,
         "bbox": None,
+    }
+
+
+def pdf_locator(page: int, bbox: tuple[float, float, float, float] | list[float]) -> dict:
+    if page < 1:
+        raise ValueError("PDF page number must be 1-based")
+    if len(bbox) != 4:
+        raise ValueError("PDF bbox must contain four coordinates")
+    return {
+        "type": "pdf_bbox",
+        "page": page,
+        "sheet": None,
+        "cell": None,
+        "cell_range": None,
+        "bbox": [round(float(value), 2) for value in bbox],
+    }
+
+
+def pdf_metric_evidence(
+    *,
+    field: str,
+    value: float,
+    observed_at: str | None,
+    source: dict,
+    page: int,
+    bbox: tuple[float, float, float, float] | list[float],
+    parser_name: str,
+    confidence: float,
+) -> dict:
+    metric_code, unit = METRICS[field]
+    return {
+        "metric_code": metric_code,
+        "value": value,
+        "unit": unit,
+        "observed_at": observed_at,
+        "source_document_id": source["document_id"],
+        "retrieved_at": source["retrieved_at"],
+        "locator": pdf_locator(page, bbox),
+        "extraction": {
+            "parser": parser_name,
+            "parser_version": PARSER_VERSION,
+            "method": "deterministic_pdf_text",
+            "confidence": confidence,
+        },
+        "review": {
+            "status": "pending",
+            "reviewed_by": None,
+            "reviewed_at": None,
+        },
     }
 
 
