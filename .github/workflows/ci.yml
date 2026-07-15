@@ -19,6 +19,8 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: "24"
+      - name: Install PDF test dependencies
+        run: python3 -m pip install -r requirements-pdf.txt
       - name: Run unit tests
         run: python3 -m unittest discover -s tests -v
       - name: Enforce private-data boundary
