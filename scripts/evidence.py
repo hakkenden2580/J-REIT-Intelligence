@@ -7,7 +7,7 @@ import hashlib
 from datetime import datetime, timezone
 from pathlib import Path
 
-PARSER_VERSION = "0.9.0"
+PARSER_VERSION = "0.10.0"
 
 METRICS = {
     "price": ("acquisition_price_million_yen", "million_jpy"),
@@ -104,6 +104,34 @@ def pdf_metric_evidence(
     confidence: float,
 ) -> dict:
     metric_code, unit = METRICS[field]
+    return pdf_value_evidence(
+        metric_code=metric_code,
+        unit=unit,
+        value=value,
+        observed_at=observed_at,
+        source=source,
+        page=page,
+        bbox=bbox,
+        parser_name=parser_name,
+        confidence=confidence,
+    )
+
+
+def pdf_value_evidence(
+    *,
+    metric_code: str,
+    unit: str,
+    value: float,
+    observed_at: str | None,
+    source: dict,
+    page: int,
+    bbox: tuple[float, float, float, float] | list[float],
+    parser_name: str,
+    confidence: float,
+) -> dict:
+    """Build Evidence for a PDF metric outside the canonical property fields."""
+    if not 0 <= confidence <= 1:
+        raise ValueError("PDF extraction confidence must be between 0 and 1")
     return {
         "metric_code": metric_code,
         "value": value,
