@@ -28,7 +28,7 @@
         "value_index": 1
       },
       {
-        "label": "賃貸NOI",
+        "labels": ["賃貸ＮＯＩ", "賃貸NOI"],
         "metric_code": "portfolio_noi_million_yen",
         "unit": "million_jpy",
         "value_index": 1

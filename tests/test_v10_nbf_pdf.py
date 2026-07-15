@@ -43,6 +43,7 @@ def create_fictional_nbf_pdf(path: Path) -> None:
         Paragraph("Fictional Earnings Presentation", styles["Title"]),
         PageBreak(),
         Paragraph("1-2 Fictional Profit and Loss", styles["Heading1"]),
+        Paragraph("Rental Income +1,622 +3.8%", styles["BodyText"]),
         summary,
         PageBreak(),
         Paragraph("2-2 Fictional External Growth", styles["Heading1"]),
@@ -71,7 +72,7 @@ def fictional_config() -> dict:
         "portfolio_metrics": [
             {"label": "Rental Income", "metric_code": "rental_income_million_yen", "unit": "million_jpy", "value_index": 1},
             {"label": "Average Occupancy", "metric_code": "occupancy_rate_percent", "unit": "percent", "value_index": 1},
-            {"label": "Portfolio NOI", "metric_code": "portfolio_noi_million_yen", "unit": "million_jpy", "value_index": 1},
+            {"labels": ["Portfolio ＮＯＩ", "Portfolio NOI"], "metric_code": "portfolio_noi_million_yen", "unit": "million_jpy", "value_index": 1},
         ],
         "property_events": [
             {"property_name": "Fictional Alpha", "anchor": "Fictional Alpha", "event_type": "acquisition_planned",

@@ -7,7 +7,7 @@ import hashlib
 from datetime import datetime, timezone
 from pathlib import Path
 
-PARSER_VERSION = "0.10.0"
+PARSER_VERSION = "0.10.1"
 
 METRICS = {
     "price": ("acquisition_price_million_yen", "million_jpy"),

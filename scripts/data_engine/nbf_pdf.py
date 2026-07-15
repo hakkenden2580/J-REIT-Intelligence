@@ -72,22 +72,30 @@ def _find_page(pdf: Any, anchors: Iterable[str]) -> tuple[int, Any]:
     raise ValueError(f"PDF page not found for anchors: {anchors}")
 
 
-def _same_row_numbers(page: Any, label: str, *, value_index: int) -> LocatedNumber:
-    labels = _search(page, label)
-    if not labels:
-        raise ValueError(f"PDF label not found: {label}")
-    label_box = labels[0]
-    label_y = _center(label_box)[1]
-    candidates = []
-    for word in page.extract_words() or []:
-        value = _numeric_value(str(word.get("text", "")))
-        if value is None or float(word["x0"]) <= float(label_box["x1"]):
-            continue
-        if abs(_center(word)[1] - label_y) <= 5.5:
-            candidates.append((float(word["x0"]), value, word))
-    candidates.sort(key=lambda item: item[0])
-    if value_index >= len(candidates):
-        raise ValueError(f"PDF row has too few numeric values: {label}")
+def _same_row_numbers(page: Any, labels: str | Iterable[str], *, value_index: int) -> LocatedNumber:
+    labels = (labels,) if isinstance(labels, str) else tuple(labels)
+    label_matches = [item for label in labels for item in _search(page, label)]
+    if not label_matches:
+        raise ValueError(f"PDF label not found: {' / '.join(labels)}")
+    words = page.extract_words() or []
+    compatible_rows = []
+    for label_box in label_matches:
+        label_y = _center(label_box)[1]
+        candidates = []
+        for word in words:
+            value = _numeric_value(str(word.get("text", "")))
+            if value is None or float(word["x0"]) <= float(label_box["x1"]):
+                continue
+            if abs(_center(word)[1] - label_y) <= 5.5:
+                candidates.append((float(word["x0"]), value, word))
+        candidates.sort(key=lambda item: item[0])
+        if value_index < len(candidates):
+            compatible_rows.append((len(candidates), -float(label_box["x0"]), candidates))
+    if not compatible_rows:
+        raise ValueError(f"PDF row has too few numeric values: {' / '.join(labels)}")
+    # The P/L table and its explanatory notes can repeat a label. Prefer the
+    # row with the richest numeric series, then the left-most table row.
+    _, _, candidates = max(compatible_rows, key=lambda item: (item[0], item[1]))
     _, value, word = candidates[value_index]
     return LocatedNumber(value, str(word["text"]), _bbox(word))
 
@@ -140,7 +148,8 @@ def parse_nbf_earnings_presentation(path: Path, config: dict, layout: dict) -> t
         summary_page_no, summary_page = _find_page(pdf, config["summary_anchors"])
         for item in config.get("portfolio_metrics", []):
             try:
-                located = _same_row_numbers(summary_page, item["label"], value_index=int(item["value_index"]))
+                labels = item.get("labels") or [item["label"]]
+                located = _same_row_numbers(summary_page, labels, value_index=int(item["value_index"]))
                 value = located.value * float(item.get("multiplier", 1))
                 portfolio_metrics.append({
                     "metric_code": item["metric_code"],
@@ -191,7 +200,7 @@ def parse_nbf_earnings_presentation(path: Path, config: dict, layout: dict) -> t
     payload = {
         "meta": {
             "dataset": "nbf-earnings-presentation-pdf-local",
-            "data_engine_version": "0.10.0",
+            "data_engine_version": "0.10.1",
             "publisher": config["publisher"],
             "reit_code": config["reit_code"],
             "period": config["period"],

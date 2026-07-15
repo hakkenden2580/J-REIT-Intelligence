@@ -14,7 +14,7 @@ from runtime_paths import (CACHE_DIR, NORMALIZED_DIR, PRIVATE_DATA_DIR,
                            QUARANTINE_DIR, RAW_DIR, REPORTS_DIR, ROOT,
                            ensure_private_dirs)
 
-USER_AGENT = "J-REIT-Intelligence/0.10 local research prototype"
+USER_AGENT = "J-REIT-Intelligence/0.10.1 local research prototype"
 
 
 def download_pdf(url: str) -> bytes:
@@ -50,7 +50,7 @@ def main() -> int:
     )
     adapter = LocalPdfAdapter(
         source_key="nbf_earnings_49", config=config,
-        parser=parse_nbf_earnings_presentation, adapter_version="0.10.0",
+        parser=parse_nbf_earnings_presentation, adapter_version="0.10.1",
     )
     result = adapter.run(context)
     report = {

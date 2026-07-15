@@ -1,4 +1,4 @@
-# J-REIT Intelligence v0.10
+# J-REIT Intelligence v0.10.1
 
 Property Intelligence Platform（PIP）の最初のモジュールです。NBF・JRE・GLPを横断し、地図、検索、物件詳細、時系列グラフ、類似物件比較、出典セル表示、CSV出力を備えます。v0.6でData Engine契約、v0.7でData Quality Gate、v0.8でデータ差分検出、v0.9でPDF共通基盤、v0.10でNBF決算説明会資料の法人別PDF Adapterを追加しました。
 
@@ -185,6 +185,8 @@ python3 scripts/import_nbf_pdf.py --accept-source-terms
 原本は`private-data/raw/nbf-49-earnings-presentation.pdf`、正規化結果は`private-data/normalized/nbf-49-earnings-presentation.json`、値を含まない監査レポートは`private-data/reports/pdf-imports/`へ保存されます。既存の234物件Excelデータは上書きせず、補足データとして分離します。
 
 公式PDFのレイアウトが変わった場合は互換性Gateで停止し、問題の詳細をローカルで確認してからAdapter定義を更新します。GitHubへ登録するのはAdapter、Schema、架空PDFテストだけです。
+
+v0.10.1では、同一ページに同名の表行と増減説明がある場合に数値列の多い本表を選び、`NOI`の全角・半角表記も別名として扱います。
 
 ## ローカル起動
 
