@@ -1,6 +1,6 @@
-# J-REIT Intelligence v0.6
+# J-REIT Intelligence v0.7
 
-Property Intelligence Platform（PIP）の最初のモジュールです。NBF・JRE・GLPを横断し、地図、検索、物件詳細、時系列グラフ、類似物件比較、出典セル表示、CSV出力を備えます。v0.6では、Excel・PDF・XBRLを同じ流れで追加するためのData Engine契約を導入しました。
+Property Intelligence Platform（PIP）の最初のモジュールです。NBF・JRE・GLPを横断し、地図、検索、物件詳細、時系列グラフ、類似物件比較、出典セル表示、CSV出力を備えます。v0.6でExcel・PDF・XBRLを同じ流れで追加するData Engine契約を導入し、v0.7では正規化済みデータを公開前に検査するData Quality Gateと品質ダッシュボードを追加しました。
 
 ## データ方針
 
@@ -93,6 +93,23 @@ Import Run監査記録
 - `scripts/data_engine/runner.py`：Import Runと再現性管理
 - `schema/import-run.schema.json`
 - `schema/workbook-layout.schema.json`
+
+## Data Quality Gate v0.7
+
+3法人の統合後、`scripts/data_engine/quality.py`が次を決定論的に検査します。
+
+- 物件IDの重複
+- 物件名、投資法人、用途、住所等の必須項目
+- CAP、稼働率等の数値範囲
+- 数値ごとのEvidence（原本、取得日時、シート、セル、Parser情報）
+- 座標の欠損・範囲
+- 賃貸可能面積と賃貸面積の整合性
+
+エラーがある場合、検査対象を`private-data/quarantine/`へ記録し、既存の正常な`properties.json`を上書きしません。合格・警告の場合だけ画面用データを更新します。詳細レポートは`private-data/reports/latest-quality-report.json`へ保存します。
+
+画面上部の「品質」ボタンでは、投資法人別・指標別のEvidence充足率と品質Gateの結果を確認できます。画面用APIは集計値だけを返し、物件別問題、原本URL、ファイル名、SHA-256を返しません。契約は`schema/data-quality-report.schema.json`です。
+
+現在の234物件では、1,561時点・15,707数値のEvidence充足率100%、座標充足率100%、品質Gateエラー0件を確認しています。公式Excelで利回りが0%と記録されている「該当なし」の値は、実在する0%利回りと誤認しないよう欠損値へ正規化します。
 
 ## ローカル起動
 
