@@ -1,0 +1,173 @@
+.pdf-button {
+  padding: 7px 10px;
+  background: #6d28d9;
+  font-size: 11px;
+}
+
+#pdfContent {
+  padding: 20px 22px 24px;
+}
+
+.pdf-document {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  padding: 14px 16px;
+  border: 1px solid #c4b5fd;
+  border-radius: 12px;
+  background: #f5f3ff;
+}
+
+.pdf-document span,
+.pdf-document small {
+  display: block;
+  color: #64748b;
+  font-size: 10px;
+}
+
+.pdf-document b {
+  display: block;
+  margin: 3px 0;
+  font-size: 16px;
+}
+
+.pdf-document a,
+.pdf-source-line a {
+  color: #5b21b6;
+  font-weight: 700;
+}
+
+.pdf-metric-cards {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 9px;
+}
+
+.pdf-metric-cards > div {
+  padding: 12px;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  background: #f8fafc;
+}
+
+.pdf-metric-cards span,
+.pdf-metric-cards small {
+  display: block;
+  color: #64748b;
+  font-size: 10px;
+}
+
+.pdf-metric-cards b {
+  display: block;
+  margin: 4px 0;
+  font-size: 17px;
+}
+
+.pdf-event-list {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 9px;
+}
+
+.pdf-event-card {
+  margin: 8px 0;
+  padding: 11px 12px;
+  border: 1px solid #ddd6fe;
+  border-left: 4px solid #7c3aed;
+  border-radius: 10px;
+  background: #faf9ff;
+}
+
+.pdf-event-card.disposal_planned {
+  border-color: #fed7aa;
+  border-left-color: #ea580c;
+  background: #fffaf5;
+}
+
+.pdf-event-heading {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.pdf-event-heading b {
+  font-size: 12px;
+}
+
+.event-type {
+  flex: none;
+  padding: 3px 6px;
+  border-radius: 12px;
+  background: #ede9fe;
+  color: #5b21b6;
+  font-size: 9px;
+  font-weight: 800;
+}
+
+.disposal_planned .event-type {
+  background: #ffedd5;
+  color: #9a3412;
+}
+
+.pdf-event-metrics {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 7px;
+  margin: 9px 0;
+}
+
+.pdf-event-metrics > div {
+  padding: 8px;
+  border: 1px solid #ede9fe;
+  border-radius: 8px;
+  background: #fff;
+}
+
+.pdf-event-metrics span {
+  display: block;
+  color: #64748b;
+  font-size: 9px;
+}
+
+.pdf-event-metrics b {
+  font-size: 13px;
+}
+
+.pdf-event-card > small,
+.pdf-source-line {
+  color: #64748b;
+  font-size: 10px;
+}
+
+.pdf-event-card details {
+  margin-top: 8px;
+  font-size: 10px;
+}
+
+.pdf-event-card summary {
+  cursor: pointer;
+}
+
+.pdf-event-card ul {
+  padding-left: 18px;
+}
+
+.pdf-events {
+  border-top-color: #ddd6fe;
+}
+
+.pdf-source-line {
+  line-height: 1.6;
+}
+
+@media (max-width: 800px) {
+  .pdf-button {
+    display: none;
+  }
+
+  .pdf-event-list,
+  .pdf-metric-cards {
+    grid-template-columns: 1fr;
+  }
+}
