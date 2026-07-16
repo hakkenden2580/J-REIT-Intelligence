@@ -1,6 +1,6 @@
-# J-REIT Intelligence v0.10.1
+# J-REIT Intelligence v0.11
 
-Property Intelligence Platform（PIP）の最初のモジュールです。NBF・JRE・GLPを横断し、地図、検索、物件詳細、時系列グラフ、類似物件比較、出典セル表示、CSV出力を備えます。v0.6でData Engine契約、v0.7でData Quality Gate、v0.8でデータ差分検出、v0.9でPDF共通基盤、v0.10でNBF決算説明会資料の法人別PDF Adapterを追加しました。
+Property Intelligence Platform（PIP）の最初のモジュールです。NBF・JRE・GLPを横断し、地図、検索、物件詳細、時系列グラフ、類似物件比較、出典セル表示、CSV出力を備えます。v0.6でData Engine契約、v0.7でData Quality Gate、v0.8でデータ差分検出、v0.9でPDF共通基盤、v0.10でNBF決算説明会資料の法人別PDF Adapter、v0.11でPDF開示イベントのローカル表示を追加しました。
 
 ## データ方針
 
@@ -187,6 +187,18 @@ python3 scripts/import_nbf_pdf.py --accept-source-terms
 公式PDFのレイアウトが変わった場合は互換性Gateで停止し、問題の詳細をローカルで確認してからAdapter定義を更新します。GitHubへ登録するのはAdapter、Schema、架空PDFテストだけです。
 
 v0.10.1では、同一ページに同名の表行と増減説明がある場合に数値列の多い本表を選び、`NOI`の全角・半角表記も別名として扱います。
+
+## PDF開示イベント表示 v0.11
+
+`import_nbf_pdf.py`で抽出した補足データが存在する場合、画面上部に「PDF開示」ボタンが表示されます。ポートフォリオ賃貸収入・NOI・平均稼働率と、取得・追加取得・譲渡予定イベントを確認できます。既存の物件名と一致する取得イベントは、物件詳細にも表示されます。
+
+ブラウザへ返す`/runtime-data/nbf-pdf.json`はlocalhost専用のサニタイズ済みAPIです。次だけを表示用に返します。
+
+- 資料名、決算期、取得日時、公式IRライブラリURL
+- 指標・取引の数値
+- PDFページ、bbox、Parser、confidence、確認状態
+
+原本PDF、ローカルファイルパス、SHA-256、直接ダウンロードURL、document ID、確認者名は返しません。正規化済み実データも引き続き`private-data/normalized/`だけに保存し、GitHubへ登録しません。PDF抽出値は`pending`のため、利用前に原資料との照合が必要です。
 
 ## ローカル起動
 

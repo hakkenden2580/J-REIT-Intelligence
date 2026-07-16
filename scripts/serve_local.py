@@ -120,6 +120,78 @@ def sanitized_change_status(record: dict) -> dict:
     }
 
 
+def sanitized_pdf_supplement(record: dict) -> dict:
+    """Expose selected PDF metrics without raw paths, hashes or download URLs."""
+    meta = record.get("meta", {})
+    raw_source = meta.get("source", {})
+    source_url = raw_source.get("url", "")
+    if not isinstance(source_url, str) or not source_url.startswith(("https://", "http://")):
+        source_url = ""
+
+    def evidence(item: dict) -> dict:
+        locator = item.get("locator", {})
+        extraction = item.get("extraction", {})
+        review = item.get("review", {})
+        return {
+            "metric_code": item.get("metric_code"),
+            "value": item.get("value"),
+            "unit": item.get("unit"),
+            "observed_at": item.get("observed_at"),
+            "retrieved_at": item.get("retrieved_at"),
+            "locator": {
+                "type": locator.get("type"),
+                "page": locator.get("page"),
+                "bbox": locator.get("bbox"),
+            },
+            "extraction": {
+                "parser": extraction.get("parser"),
+                "parser_version": extraction.get("parser_version"),
+                "method": extraction.get("method"),
+                "confidence": extraction.get("confidence"),
+            },
+            "review": {"status": review.get("status")},
+        }
+
+    portfolio_metrics = [{
+        "metric_code": item.get("metric_code"),
+        "value": item.get("value"),
+        "unit": item.get("unit"),
+        "period": item.get("period"),
+        "as_of_date": item.get("as_of_date"),
+        "evidence": evidence(item.get("evidence", {})),
+    } for item in record.get("portfolio_metrics", [])]
+    property_events = [{
+        "property_name": item.get("property_name"),
+        "reit": item.get("reit"),
+        "reit_code": item.get("reit_code"),
+        "event_type": item.get("event_type"),
+        "announced_period": item.get("announced_period"),
+        "as_of_date": item.get("as_of_date"),
+        "price_million_yen": item.get("price_million_yen"),
+        "noi_yield_percent": item.get("noi_yield_percent"),
+        "evidence": {key: evidence(value) for key, value in item.get("evidence", {}).items()},
+    } for item in record.get("property_events", [])]
+    return {
+        "meta": {
+            "dataset": meta.get("dataset"),
+            "data_engine_version": meta.get("data_engine_version"),
+            "publisher": meta.get("publisher"),
+            "reit_code": meta.get("reit_code"),
+            "period": meta.get("period"),
+            "as_of_date": meta.get("as_of_date"),
+            "notice": meta.get("notice"),
+            "source": {
+                "document": raw_source.get("document") or raw_source.get("title"),
+                "period": raw_source.get("period"),
+                "url": source_url,
+                "retrieved_at": raw_source.get("retrieved_at"),
+            },
+        },
+        "portfolio_metrics": portfolio_metrics,
+        "property_events": property_events,
+    }
+
+
 class LocalHandler(SimpleHTTPRequestHandler):
     def json_response(self, payload: dict):
         encoded = json.dumps(payload, ensure_ascii=False).encode("utf-8")
@@ -140,6 +212,16 @@ class LocalHandler(SimpleHTTPRequestHandler):
 
     def send_head(self):
         request_path = normalized_request_path(self.path)
+        if request_path == "/runtime-data/nbf-pdf.json":
+            target = NORMALIZED_DIR / "nbf-49-earnings-presentation.json"
+            if not target.is_file():
+                self.send_error(404, "NBF PDF supplement not found")
+                return None
+            try:
+                return self.json_response(sanitized_pdf_supplement(json.loads(target.read_text(encoding="utf-8"))))
+            except (OSError, json.JSONDecodeError, TypeError):
+                self.send_error(500, "NBF PDF supplement is invalid")
+                return None
         if request_path == "/runtime-data/change-status.json":
             target = REPORTS_DIR / "latest-change-report.json"
             if not target.is_file():

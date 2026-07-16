@@ -1,4 +1,4 @@
-let properties=[];let visible=[];let selected=null;
+let properties=[];let visible=[];let selected=null;let pdfSupplement=null;
 const map=L.map("map").setView([35.55,139.55],7);
 L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",{attribution:"&copy; OpenStreetMap contributors"}).addTo(map);
 const markers=L.layerGroup().addTo(map);
@@ -7,6 +7,7 @@ const pct=n=>n==null?"—":`${Number(n).toFixed(1)}%`;
 const area=n=>n==null?"—":`${Number(n).toLocaleString("ja-JP")}㎡`;
 const text=n=>n==null?"—":Number(n).toLocaleString("ja-JP");
 const esc=s=>String(s??"").replace(/[&<>'"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;","'":"&#39;",'"':"&quot;"}[c]));
+const safeUrl=value=>{try{const url=new URL(String(value||""));return ["https:","http:"].includes(url.protocol)?url.href:""}catch{return""}};
 const reitFilter=document.querySelector("#reit"),typeFilter=document.querySelector("#type"),region=document.querySelector("#region");
 const metrics={
   cap:{label:"直接還元利回り（CR）",short:"CR",format:pct,color:"#2563eb"},
@@ -16,6 +17,44 @@ const metrics={
 };
 const evidenceLabels={price:"取得価格",book_value:"期末簿価",appraisal:"鑑定評価額",leasable_area:"賃貸可能面積",leased_area:"賃貸面積",tenants:"テナント数",occupancy:"稼働率",cap:"直接還元利回り",discount_rate:"割引率",terminal_cap_rate:"最終還元利回り",noi:"NOI"};
 const checkLabels={unique_property_id:"物件ID重複",required_fields:"必須項目",numeric_ranges:"数値範囲",evidence_completeness:"Evidence",coordinates:"座標",leased_area_consistency:"面積整合"};
+const pdfMetricLabels={rental_income_million_yen:"不動産賃貸収入",occupancy_rate_percent:"期中平均稼働率",portfolio_noi_million_yen:"賃貸NOI",acquisition_price_million_yen:"取得価格",disposal_price_million_yen:"譲渡価格",noi_yield_percent:"NOI利回り"};
+const eventLabels={acquisition_planned:"取得予定",additional_acquisition_planned:"追加取得予定",acquisition:"取得",disposal_planned:"譲渡予定"};
+
+const normalizedPropertyName=value=>String(value||"").normalize("NFKC").replace(/[\s　]/g,"").replace(/[（(]追加取得[）)]/g,"");
+const eventPage=event=>Object.values(event.evidence||{}).map(item=>item.locator?.page).find(Boolean);
+const pdfEventsFor=p=>{const name=normalizedPropertyName(p.name);return (pdfSupplement?.property_events||[]).filter(event=>{const eventName=normalizedPropertyName(event.property_name);return name===eventName||name.includes(eventName)||eventName.includes(name)})};
+const pdfValue=(metricCode,value)=>metricCode.includes("percent")?pct(value):yen(value);
+
+function pdfEvidenceList(evidence){
+  return Object.values(evidence||{}).map(item=>{const page=item.locator?.page?`p.${item.locator.page}`:"ページ不明";const confidence=item.extraction?.confidence==null?"":`・信頼度 ${(Number(item.extraction.confidence)*100).toFixed(0)}%`;const review=item.review?.status==="verified"?"確認済み":"未確認";return`<li><b>${esc(pdfMetricLabels[item.metric_code]||evidenceLabels[item.metric_code]||item.metric_code)}</b><br><code>${esc(page)}</code>${esc(confidence)}・${esc(review)}</li>`}).join("");
+}
+
+function pdfEventCard(event,{compact=false}={}){
+  const page=eventPage(event),label=eventLabels[event.event_type]||event.event_type;
+  return`<article class="pdf-event-card ${esc(event.event_type)}"><div class="pdf-event-heading"><span class="event-type">${esc(label)}</span><b>${esc(event.property_name)}</b></div><div class="pdf-event-metrics"><div><span>取引価格</span><b>${yen(event.price_million_yen)}</b></div><div><span>NOI利回り</span><b>${pct(event.noi_yield_percent)}</b></div></div><small>${esc(event.announced_period||"")}${page?`・PDF p.${page}`:""}</small>${compact?"":`<details><summary>数値ごとのPDF Evidence</summary><ul>${pdfEvidenceList(event.evidence)}</ul></details>`}</article>`;
+}
+
+function pdfEventPanel(p){
+  const events=pdfEventsFor(p);if(!events.length)return"";
+  const source=pdfSupplement?.meta?.source||{},url=safeUrl(source.url),retrieved=source.retrieved_at?new Date(source.retrieved_at).toLocaleString("ja-JP"):"未記録";
+  return`<section class="analysis pdf-events"><div class="analysis-heading"><div><span class="eyebrow">DISCLOSURE EVENT</span><h3>取得・売却イベント</h3></div></div>${events.map(event=>pdfEventCard(event)).join("")}<p class="pdf-source-line">${esc(source.document||"NBF決算説明会資料")}・取得日時 ${esc(retrieved)}${url?`・<a href="${esc(url)}" target="_blank" rel="noopener">公式IR</a>`:""}</p><p class="method">PDF抽出値は未確認です。投資・融資判断前に原資料と照合してください。</p></section>`;
+}
+
+function renderPdfDashboard(){
+  const button=document.querySelector("#pdfStatus"),dialog=document.querySelector("#pdfDialog"),content=document.querySelector("#pdfContent");
+  if(!pdfSupplement){button.hidden=true;return}
+  const metrics=(pdfSupplement.portfolio_metrics||[]).map(item=>`<div><span>${esc(pdfMetricLabels[item.metric_code]||item.metric_code)}</span><b>${pdfValue(item.metric_code,item.value)}</b><small>${item.evidence?.locator?.page?`PDF p.${item.evidence.locator.page}`:""}</small></div>`).join("");
+  const events=(pdfSupplement.property_events||[]).map(event=>pdfEventCard(event,{compact:true})).join("");
+  const source=pdfSupplement.meta?.source||{},url=safeUrl(source.url),retrieved=source.retrieved_at?new Date(source.retrieved_at).toLocaleString("ja-JP"):"未記録";
+  button.textContent=`PDF開示 ${pdfSupplement.property_events?.length||0}件`;button.hidden=false;
+  content.innerHTML=`<div class="pdf-document"><div><span>資料</span><b>${esc(source.document||"NBF決算説明会資料")}</b><small>${esc(pdfSupplement.meta?.period||"")}・取得日時 ${esc(retrieved)}</small></div>${url?`<a href="${esc(url)}" target="_blank" rel="noopener">公式IRライブラリ</a>`:""}</div><section class="quality-section"><h3>ポートフォリオ指標</h3><div class="pdf-metric-cards">${metrics}</div></section><section class="quality-section"><h3>取得・売却イベント</h3><div class="pdf-event-list">${events}</div></section><p class="privacy-note">原本PDF、SHA-256、ダウンロードURL、正規化済み実データはブラウザへ公開していません。この表示はMac内のprivate-dataをlocalhost専用APIでサニタイズしたものです。</p>`;
+  button.onclick=()=>dialog.showModal();
+}
+
+async function loadPdfSupplement(){
+  try{const res=await fetch("runtime-data/nbf-pdf.json",{cache:"no-store"});if(!res.ok)return;pdfSupplement=await res.json();renderPdfDashboard()}
+  catch{pdfSupplement=null;renderPdfDashboard()}
+}
 
 async function loadImportStatus(){
   const badge=document.querySelector("#engineStatus");
@@ -85,14 +124,17 @@ function sourcePanel(p){
   const entries=Object.entries(p.evidence||{}).map(([field,item])=>{const loc=item.locator||{};const position=[loc.page?`p.${loc.page}`:"",loc.sheet||"",loc.cell||loc.cell_range||""].filter(Boolean).join(" / ");return`<li><b>${esc(evidenceLabels[field]||field)}</b><br><code>${esc(position||"位置情報なし")}</code>・${esc(item.unit||"")}・${esc(item.review?.status||"未確認")}</li>`}).join("");
   const legacy=!entries?Object.entries(src.cells||{}).filter(([,v])=>v).map(([k,v])=>`<li><b>${esc(evidenceLabels[k]||k)}</b><br><code>${esc(v)}</code></li>`).join(""):"";
   const retrieved=src.retrieved_at?new Date(src.retrieved_at).toLocaleString("ja-JP"):"未記録";
-  return`<div class="source"><b>出典・Evidence</b><p>${esc(src.document||src.title)}・${esc(src.period)}</p><p>取得日時：${esc(retrieved)}<br>SHA-256：<code>${esc((src.sha256||"").slice(0,16))}${src.sha256?"…":"未記録"}</code></p><a href="${esc(src.url)}" target="_blank" rel="noopener">公式IRライブラリを開く</a><details><summary>数値ごとの抽出位置</summary><ul>${entries||legacy||"<li>位置情報なし</li>"}</ul></details></div>`;
+  const url=safeUrl(src.url);
+  return`<div class="source"><b>出典・Evidence</b><p>${esc(src.document||src.title)}・${esc(src.period)}</p><p>取得日時：${esc(retrieved)}<br>SHA-256：<code>${esc((src.sha256||"").slice(0,16))}${src.sha256?"…":"未記録"}</code></p>${url?`<a href="${esc(url)}" target="_blank" rel="noopener">公式IRライブラリを開く</a>`:""}<details><summary>数値ごとの抽出位置</summary><ul>${entries||legacy||"<li>位置情報なし</li>"}</ul></details></div>`;
 }
 
 async function loadData(){
+  const supplementPromise=loadPdfSupplement();
   let payload;
   try{const res=await fetch("runtime-data/properties.json",{cache:"no-store"});if(!res.ok)throw new Error();payload=await res.json()}
   catch{payload=await (await fetch("data/demo-properties.json")).json()}
   properties=payload.properties.map(p=>({...p,periods:p.periods?.length?p.periods:[{period_no:null,period:"最新",as_of_date:null,cap:p.cap,noi:p.noi,occupancy:p.occupancy,appraisal:p.appraisal}]}));
+  await supplementPromise;
   visible=[...properties];
   document.querySelector("#dataset").textContent=payload.meta.label;
   document.querySelector("#dataset").classList.toggle("demo",payload.meta.dataset==="demo");
@@ -124,7 +166,7 @@ function selectProperty(p){
   const defaultMetric=Object.keys(metrics).find(key=>p.periods.some(period=>period[key]!=null))||"appraisal";
   const metricOptions=Object.entries(metrics).map(([key,item])=>`<option value="${key}"${key===defaultMetric?" selected":""}>${item.label}</option>`).join("");
   const comparableCards=comparablesFor(p).map(item=>`<button class="comparable" data-property-id="${esc(item.property.id)}"><span class="score">類似度 ${item.score}</span><b>${esc(item.property.name)}</b><small>${item.distance==null?"距離不明":`${item.distance.toFixed(1)}km`}・CR ${pct(item.property.cap)}・${area(item.property.leasable_area)}</small></button>`).join("");
-  document.querySelector("#detail").innerHTML=`<h2>${esc(p.name)}</h2><div class="address">${esc(p.address)}</div><div><span class="pill">${esc(p.type)}</span>${p.geocode?.quality==="automatic"?'<span class="pill neutral">座標：自動取得</span>':""}</div><div class="metrics"><div class="metric"><span>取得価格</span><b>${yen(p.price)}</b></div><div class="metric"><span>鑑定評価額</span><b>${yen(p.appraisal)}</b></div><div class="metric"><span>直接還元利回り（CR）</span><b>${pct(p.cap)}</b></div><div class="metric"><span>稼働率</span><b>${pct(p.occupancy)}</b></div><div class="metric"><span>NOI（当期）</span><b>${yen(p.noi)}</b></div><div class="metric"><span>期末簿価</span><b>${yen(p.book_value)}</b></div><div class="metric"><span>賃貸可能面積</span><b>${area(p.leasable_area)}</b></div><div class="metric"><span>テナント数</span><b>${text(p.tenants)}</b></div></div><section class="analysis"><div class="analysis-heading"><div><span class="eyebrow">HISTORY</span><h3>物件データの推移</h3></div><select id="historyMetric" aria-label="推移指標">${metricOptions}</select></div><canvas id="historyChart" aria-label="物件データ推移グラフ"></canvas><div id="historySummary"></div></section><section class="analysis"><div class="analysis-heading"><div><span class="eyebrow">COMPARABLES</span><h3>類似物件 上位5件</h3></div></div><p class="method">距離35%、面積25%、取得価格15%、CR15%、稼働率10%で算出</p><div class="comparable-list">${comparableCards||'<p class="empty">比較できる物件がありません。</p>'}</div></section>${sourcePanel(p)}`;
+  document.querySelector("#detail").innerHTML=`<h2>${esc(p.name)}</h2><div class="address">${esc(p.address)}</div><div><span class="pill">${esc(p.type)}</span>${p.geocode?.quality==="automatic"?'<span class="pill neutral">座標：自動取得</span>':""}</div><div class="metrics"><div class="metric"><span>取得価格</span><b>${yen(p.price)}</b></div><div class="metric"><span>鑑定評価額</span><b>${yen(p.appraisal)}</b></div><div class="metric"><span>直接還元利回り（CR）</span><b>${pct(p.cap)}</b></div><div class="metric"><span>稼働率</span><b>${pct(p.occupancy)}</b></div><div class="metric"><span>NOI（当期）</span><b>${yen(p.noi)}</b></div><div class="metric"><span>期末簿価</span><b>${yen(p.book_value)}</b></div><div class="metric"><span>賃貸可能面積</span><b>${area(p.leasable_area)}</b></div><div class="metric"><span>テナント数</span><b>${text(p.tenants)}</b></div></div>${pdfEventPanel(p)}<section class="analysis"><div class="analysis-heading"><div><span class="eyebrow">HISTORY</span><h3>物件データの推移</h3></div><select id="historyMetric" aria-label="推移指標">${metricOptions}</select></div><canvas id="historyChart" aria-label="物件データ推移グラフ"></canvas><div id="historySummary"></div></section><section class="analysis"><div class="analysis-heading"><div><span class="eyebrow">COMPARABLES</span><h3>類似物件 上位5件</h3></div></div><p class="method">距離35%、面積25%、取得価格15%、CR15%、稼働率10%で算出</p><div class="comparable-list">${comparableCards||'<p class="empty">比較できる物件がありません。</p>'}</div></section>${sourcePanel(p)}`;
   const selector=document.querySelector("#historyMetric");selector.onchange=()=>drawHistory(p,selector.value);drawHistory(p,selector.value);
   document.querySelectorAll(".comparable").forEach(button=>button.onclick=()=>selectProperty(properties.find(item=>item.id===button.dataset.propertyId)));
   document.querySelectorAll(".item").forEach(item=>item.classList.toggle("active",item.dataset.id===p.id));
