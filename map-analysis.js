@@ -25,7 +25,7 @@
     return Number.isFinite(lat)&&Number.isFinite(lng)&&lat>=bounds.south&&lat<=bounds.north&&lng>=bounds.west&&lng<=bounds.east;
   }
 
-  function selectIds(properties,existingIds,limit=8){
+  function selectIds(properties,existingIds,limit=50){
     const selected=[...existingIds].slice(0,limit),selectedSet=new Set(selected);
     for(const property of properties){
       if(selected.length>=limit)break;

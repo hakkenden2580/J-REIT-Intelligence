@@ -1,16 +1,22 @@
 .map-action-bar #toggleRadiusSearch.active{background:#6d28d9;color:#fff}
+.map-action-bar #toggleBoxSelection.active{background:#b45309;color:#fff}
 .radius-panel{position:absolute;z-index:710;top:52px;left:10px;width:260px;padding:13px;background:#fffffff5;border:1px solid #d8dce5;border-radius:12px;box-shadow:0 7px 28px #0f172a38}
 .radius-panel-heading{display:flex;justify-content:space-between;align-items:flex-start;gap:8px;margin-bottom:11px}
 .radius-panel-heading b{display:block;font-size:12px;margin-top:2px}
 .radius-panel-heading button{padding:0 4px;background:transparent;color:#64748b;font-size:18px}
 .radius-panel>label{display:block;font-size:10px;font-weight:800;color:#475569;margin-bottom:5px}
-.radius-panel select{margin:0 0 9px;padding:8px 9px;font-size:11px}
+.radius-slider{display:grid;grid-template-columns:1fr 54px;align-items:center;gap:9px;margin-bottom:10px}
+.radius-slider input{width:100%;margin:0;accent-color:#2563eb}
+.radius-slider output{border:1px solid #bfdbfe;border-radius:7px;background:#eff6ff;color:#1d4ed8;padding:6px 4px;font-size:10px;font-weight:900;text-align:center}
 .radius-actions{display:grid;grid-template-columns:1fr 1fr;gap:6px}
 .radius-actions button{padding:8px 6px;font-size:9px}
 .radius-panel .radius-clear{width:100%;margin-top:7px;padding:7px;background:#fee2e2;color:#991b1b;font-size:9px}
 .radius-panel p{margin:8px 1px 0;color:#64748b;font-size:9px;line-height:1.45}
-.map-view.radius-picking #map{cursor:crosshair}
+.map-view.radius-picking #map,.map-view.box-selecting #map{cursor:crosshair}
 .leaflet-interactive.radius-circle{filter:drop-shadow(0 1px 2px #1d4ed855)}
+.radius-resize-handle-shell{background:transparent;border:0}
+.radius-resize-handle{display:block;width:18px;height:18px;border:3px solid #fff;border-radius:50%;background:#2563eb;box-shadow:0 2px 8px #0f172a88;cursor:ew-resize}
+.leaflet-interactive.selection-box{filter:drop-shadow(0 1px 3px #b4530955)}
 .detail-spatial-button{width:100%;margin:7px 0 0;background:#ede9fe;color:#5b21b6}
 @media(max-width:700px){
   .radius-panel{top:86px;left:7px;width:min(260px,calc(100% - 14px))}

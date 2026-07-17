@@ -1,11 +1,11 @@
 .map-view{position:relative}
 .map-view #map{grid-column:1}
 .map-view .detail{grid-column:2}
-.map-action-bar{position:absolute;z-index:700;top:10px;left:10px;right:450px;display:flex;align-items:center;gap:6px;pointer-events:none}
+.map-action-bar{position:absolute;z-index:700;top:10px;left:10px;right:450px;display:flex;align-items:center;align-content:flex-start;flex-wrap:wrap;gap:6px;pointer-events:none}
 .map-action-bar>*{pointer-events:auto}
 .map-action-bar button{box-shadow:0 2px 10px #0f172a24;padding:8px 10px;font-size:10px}
 .map-action-bar #filterMapBounds.active{background:#166534}
-.map-action-bar span{margin-left:auto;background:#ffffffea;border:1px solid #dbe3ee;border-radius:999px;padding:6px 9px;color:#475569;font-size:9px;box-shadow:0 2px 10px #0f172a14}
+.map-action-bar span{background:#ffffffea;border:1px solid #dbe3ee;border-radius:999px;padding:6px 9px;color:#475569;font-size:9px;box-shadow:0 2px 10px #0f172a14}
 .cap-legend{position:absolute;z-index:700;left:10px;bottom:12px;background:#ffffffed;border:1px solid #dbe3ee;border-radius:10px;padding:9px 10px;box-shadow:0 4px 18px #0f172a24;display:grid;gap:5px}
 .cap-legend b{font-size:10px;margin-bottom:2px}
 .cap-legend span{display:flex;align-items:center;gap:6px;font-size:9px;color:#475569}

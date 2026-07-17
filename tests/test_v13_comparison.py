@@ -50,11 +50,11 @@ console.log(JSON.stringify({
         html = (ROOT / "index.html").read_text(encoding="utf-8")
         javascript = (ROOT / "app.js").read_text(encoding="utf-8")
         css = (ROOT / "comparison-analysis.css").read_text(encoding="utf-8")
-        self.assertIn("J-REIT Intelligence v0.16", html)
+        self.assertIn("J-REIT Intelligence v0.17", html)
         self.assertIn('id="comparisonButton"', html)
         self.assertIn('id="comparisonDialog"', html)
         self.assertLess(html.index("analysis-math.js"), html.index("app.js"))
-        self.assertIn("comparisonLimit=8", javascript)
+        self.assertIn("comparisonLimit=50", javascript)
         for metric in ('"cap"', '"noi"', '"occupancy"', '"appraisal"'):
             self.assertIn(metric, javascript)
         self.assertIn("未開示値の補間は行いません", javascript)

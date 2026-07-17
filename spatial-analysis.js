@@ -10,7 +10,7 @@
 
   function normalizeRadiusKm(value,fallback=3){
     const numeric=Number(value);
-    return Number.isFinite(numeric)&&numeric>0&&numeric<=100?numeric:fallback;
+    return Number.isFinite(numeric)&&numeric>=0?Math.min(50,Math.max(.5,numeric)):fallback;
   }
 
   function haversineKm(a,b){
@@ -28,5 +28,15 @@
     return distance!=null&&distance<=normalizeRadiusKm(filter.radiusKm);
   }
 
-  return{coordinates,normalizeRadiusKm,haversineKm,withinRadius};
+  function destinationPoint(origin,distanceKm,bearingDegrees=90){
+    const start=coordinates(origin);
+    if(!start)return null;
+    const distance=normalizeRadiusKm(distanceKm)/6371,bearing=Number(bearingDegrees)*Math.PI/180;
+    const lat1=start.lat*Math.PI/180,lng1=start.lng*Math.PI/180;
+    const lat2=Math.asin(Math.sin(lat1)*Math.cos(distance)+Math.cos(lat1)*Math.sin(distance)*Math.cos(bearing));
+    const lng2=lng1+Math.atan2(Math.sin(bearing)*Math.sin(distance)*Math.cos(lat1),Math.cos(distance)-Math.sin(lat1)*Math.sin(lat2));
+    return{lat:lat2*180/Math.PI,lng:lng2*180/Math.PI};
+  }
+
+  return{coordinates,normalizeRadiusKm,haversineKm,withinRadius,destinationPoint};
 });

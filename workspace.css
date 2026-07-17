@@ -28,7 +28,7 @@ main{grid-template-columns:310px minmax(0,1fr)}
 .selection-heading{display:flex;align-items:center;justify-content:space-between;gap:8px}
 .selection-heading b{display:block;font-size:12px}
 .selection-heading button{padding:4px 7px;background:transparent;color:#6d28d9;font-size:9px}
-.selection-chips{display:flex;gap:5px;flex-wrap:wrap;max-height:82px;overflow:auto;margin:8px 0}
+.selection-chips{display:flex;gap:5px;flex-wrap:wrap;max-height:120px;overflow:auto;margin:8px 0}
 .selection-chip{display:inline-flex;align-items:center;gap:4px;border:1px solid #ddd6fe;background:#fff;color:#4c1d95;border-radius:999px;padding:4px 7px;font-size:9px}
 .selection-chip button{padding:0;background:transparent;color:#8b5cf6;font-size:12px}
 .selection-actions{display:grid;grid-template-columns:1fr 1fr;gap:6px}
