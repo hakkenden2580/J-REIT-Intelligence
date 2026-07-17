@@ -42,6 +42,25 @@
     });
   }
 
+  function sampleCounts(seriesList) {
+    if (!seriesList.length) return [];
+    return seriesList[0].map((_, index) =>
+      seriesList.reduce((count, series) => count + (series[index] == null ? 0 : 1), 0)
+    );
+  }
+
+  function resolveSeriesMode(requestedMode, propertyCount, individualLimit = 8) {
+    if (requestedMode === "average" || requestedMode === "individual") return requestedMode;
+    return propertyCount > individualLimit ? "average" : "individual";
+  }
+
+  function nearestTimelineIndex(pointerX, plotLeft, plotWidth, timelineLength) {
+    if (!timelineLength) return null;
+    if (timelineLength === 1 || plotWidth <= 0) return 0;
+    const ratio = Math.max(0, Math.min(1, (pointerX - plotLeft) / plotWidth));
+    return Math.max(0, Math.min(timelineLength - 1, Math.round(ratio * (timelineLength - 1))));
+  }
+
   function summary(property, metricKey) {
     const values = (property.periods || [])
       .map((period, index) => ({key: periodKey(period, index), value: period?.[metricKey]}))
@@ -57,5 +76,14 @@
     };
   }
 
-  return {periodKey, buildTimeline, buildSeries, averageSeries, summary};
+  return {
+    periodKey,
+    buildTimeline,
+    buildSeries,
+    averageSeries,
+    sampleCounts,
+    resolveSeriesMode,
+    nearestTimelineIndex,
+    summary,
+  };
 }));
