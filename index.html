@@ -3,27 +3,70 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
-  <title>J-REIT Intelligence v0.13</title>
+  <title>J-REIT Intelligence v0.14</title>
   <meta name="description" content="J-REIT物件の地図、時系列分析、類似物件比較を行うProperty Intelligence Platformの試作モジュール">
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
   <link rel="stylesheet" href="styles.css">
   <link rel="stylesheet" href="change-report.css">
   <link rel="stylesheet" href="pdf-events.css">
   <link rel="stylesheet" href="comparison-analysis.css">
+  <link rel="stylesheet" href="workspace.css">
 </head>
 <body>
-  <header><div><h1>J-REIT Intelligence</h1><p>Property Intelligence Platform — J-REIT Module v0.13</p></div><div class="header-actions"><span id="engineStatus" class="engine-status" hidden></span><button id="changeButton" class="change-button" hidden>差分確認</button><button id="qualityButton" class="quality-button" hidden>品質確認</button><button id="pdfStatus" class="pdf-button" hidden>PDF開示</button><button id="comparisonButton" class="comparison-button" disabled>比較分析 0件</button><span id="dataset" class="dataset">読込中</span><button id="export">CSV出力</button></div></header>
+  <header><div><h1>J-REIT Intelligence</h1><p>Property Intelligence Platform — J-REIT Module v0.14</p></div><div class="header-actions"><span id="engineStatus" class="engine-status" hidden></span><button id="changeButton" class="change-button" hidden>差分確認</button><button id="qualityButton" class="quality-button" hidden>品質確認</button><button id="pdfStatus" class="pdf-button" hidden>PDF開示</button><button id="comparisonButton" class="comparison-button" disabled>比較分析 0件</button><span id="dataset" class="dataset">読込中</span><button id="export">表示CSV</button></div></header>
   <main>
     <aside>
       <input id="search" type="search" placeholder="物件名・住所を検索">
       <select id="reit"><option value="">すべての投資法人</option></select>
       <select id="type"><option value="">すべての用途</option></select>
       <select id="region"><option value="">すべての地域</option></select>
+      <details class="advanced-filters">
+        <summary>詳細条件</summary>
+        <div class="range-filter"><label>鑑定CR（%）</label><div><input id="capMin" type="number" inputmode="decimal" step="0.1" placeholder="下限"><span>〜</span><input id="capMax" type="number" inputmode="decimal" step="0.1" placeholder="上限"></div></div>
+        <div class="range-filter"><label>稼働率（%）</label><div><input id="occupancyMin" type="number" inputmode="decimal" step="0.1" placeholder="下限"><span>〜</span><input id="occupancyMax" type="number" inputmode="decimal" step="0.1" placeholder="上限"></div></div>
+        <div class="range-filter"><label>取得価格（百万円）</label><div><input id="priceMin" type="number" inputmode="numeric" step="100" placeholder="下限"><span>〜</span><input id="priceMax" type="number" inputmode="numeric" step="100" placeholder="上限"></div></div>
+        <div class="range-filter"><label>賃貸可能面積（㎡）</label><div><input id="areaMin" type="number" inputmode="numeric" step="100" placeholder="下限"><span>〜</span><input id="areaMax" type="number" inputmode="numeric" step="100" placeholder="上限"></div></div>
+        <label class="sort-label" for="sort">並べ替え</label>
+        <select id="sort">
+          <option value="name-asc">物件名（昇順）</option>
+          <option value="cap-asc">鑑定CR（低い順）</option>
+          <option value="cap-desc">鑑定CR（高い順）</option>
+          <option value="price-desc">取得価格（高い順）</option>
+          <option value="price-asc">取得価格（低い順）</option>
+          <option value="occupancy-desc">稼働率（高い順）</option>
+          <option value="area-desc">賃貸可能面積（大きい順）</option>
+        </select>
+        <button id="resetFilters" class="filter-reset" type="button">条件をリセット</button>
+        <p>築年・取得日は共通Schemaへ追加後に利用できます。</p>
+      </details>
       <div class="summary"><b id="count">0</b><span>表示物件</span></div>
+      <section id="selectionPanel" class="selection-panel" hidden>
+        <div class="selection-heading"><div><span class="eyebrow">SELECTED</span><b>比較対象 <span id="selectionCount">0</span>件</b></div><button id="clearSelection" type="button">解除</button></div>
+        <div id="selectionChips" class="selection-chips"></div>
+        <div class="selection-actions"><button id="openSelectedAnalysis" type="button">比較グラフ</button><button id="exportSelected" class="secondary-button" type="button">選択CSV</button></div>
+      </section>
       <div id="list"></div>
     </aside>
-    <section id="map"></section>
-    <section id="detail" class="detail"><p class="empty">地図または一覧から物件を選択してください。</p></section>
+    <section class="workspace">
+      <nav class="workspace-toolbar" aria-label="表示切替">
+        <div class="view-tabs" role="tablist">
+          <button type="button" class="view-tab active" data-view="map" role="tab" aria-selected="true">地図</button>
+          <button type="button" class="view-tab" data-view="table" role="tab" aria-selected="false">一覧表</button>
+          <button type="button" class="view-tab" data-view="analysis" role="tab" aria-selected="false">比較グラフ</button>
+        </div>
+        <span id="workspaceSummary">0物件を表示</span>
+      </nav>
+      <div id="mapView" class="workspace-view map-view active">
+        <section id="map"></section>
+        <section id="detail" class="detail"><p class="empty">地図または一覧から物件を選択してください。</p></section>
+      </div>
+      <section id="tableView" class="workspace-view table-view" hidden>
+        <div id="propertyTable"></div>
+      </section>
+      <section id="analysisView" class="workspace-view analysis-view" hidden>
+        <div id="workspaceAnalysis"><p class="empty">比較する物件を2件以上選択してください。</p></div>
+      </section>
+    </section>
   </main>
   <dialog id="qualityDialog" class="quality-dialog">
     <div class="dialog-heading"><div><span class="eyebrow">DATA QUALITY</span><h2>データ品質レポート</h2></div><form method="dialog"><button class="dialog-close" aria-label="閉じる">×</button></form></div>
@@ -46,6 +89,7 @@
   </dialog>
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <script src="analysis-math.js" defer></script>
+  <script src="workspace-utils.js" defer></script>
   <script src="app.js" defer></script>
 </body>
 </html>

@@ -29,5 +29,6 @@ jobs:
         run: |
           node --check app.js
           node --check analysis-math.js
+          node --check workspace-utils.js
       - name: Check Python syntax without bytecode artifacts
         run: python3 -c 'import ast,pathlib; [ast.parse(p.read_text()) for p in pathlib.Path("scripts").rglob("*.py")]'
