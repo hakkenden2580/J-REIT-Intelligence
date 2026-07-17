@@ -14,12 +14,38 @@
     return period?.period || (period?.period_no != null ? `第${period.period_no}期` : key);
   };
 
+  const comparisonPeriodKey = (period, index = 0) => {
+    const match = String(period?.as_of_date || "").match(/^(\d{4})-(\d{2})/);
+    if (!match) return periodKey(period, index);
+    const half = Number(match[2]) <= 6 ? 1 : 2;
+    return `${match[1]}-H${half}`;
+  };
+
+  const comparisonPeriodLabel = (period, key) => {
+    const match = String(key).match(/^(\d{4})-H([12])$/);
+    if (!match) return periodLabel(period, key);
+    return `${match[1]}-${match[2] === "1" ? "06" : "12"}`;
+  };
+
   function buildTimeline(properties) {
     const byKey = new Map();
     properties.forEach(property => {
       (property.periods || []).forEach((period, index) => {
         const key = periodKey(period, index);
         if (!byKey.has(key)) byKey.set(key, {key, label: periodLabel(period, key)});
+      });
+    });
+    return [...byKey.values()].sort((a, b) => a.key.localeCompare(b.key));
+  }
+
+  function buildComparisonTimeline(properties) {
+    const byKey = new Map();
+    properties.forEach(property => {
+      (property.periods || []).forEach((period, index) => {
+        const key = comparisonPeriodKey(period, index);
+        if (!byKey.has(key)) {
+          byKey.set(key, {key, label: comparisonPeriodLabel(period, key)});
+        }
       });
     });
     return [...byKey.values()].sort((a, b) => a.key.localeCompare(b.key));
@@ -32,6 +58,23 @@
       values.set(periodKey(period, index), value == null || Number.isNaN(Number(value)) ? null : Number(value));
     });
     return timeline.map(point => values.has(point.key) ? values.get(point.key) : null);
+  }
+
+  function buildComparisonSeries(property, metricKey, timeline) {
+    const values = new Map();
+    (property.periods || []).forEach((period, index) => {
+      const numeric = Number(period?.[metricKey]);
+      if (period?.[metricKey] == null || Number.isNaN(numeric)) return;
+      const key = comparisonPeriodKey(period, index);
+      const observedAt = period?.as_of_date
+        ? String(period.as_of_date)
+        : `index-${String(index).padStart(6, "0")}`;
+      const previous = values.get(key);
+      if (!previous || observedAt >= previous.observedAt) {
+        values.set(key, {value: numeric, observedAt});
+      }
+    });
+    return timeline.map(point => values.get(point.key)?.value ?? null);
   }
 
   function averageSeries(seriesList) {
@@ -47,6 +90,21 @@
     return seriesList[0].map((_, index) =>
       seriesList.reduce((count, series) => count + (series[index] == null ? 0 : 1), 0)
     );
+  }
+
+  function minimumAverageSampleSize(propertyCount) {
+    if (propertyCount <= 8) return 1;
+    return Math.max(3, Math.ceil(propertyCount * 0.1));
+  }
+
+  function coverageAwareAverage(seriesList, minimumCount = minimumAverageSampleSize(seriesList.length)) {
+    const counts = sampleCounts(seriesList);
+    const unfiltered = averageSeries(seriesList);
+    return {
+      average: unfiltered.map((value, index) => counts[index] >= minimumCount ? value : null),
+      counts,
+      minimumCount,
+    };
   }
 
   function resolveSeriesMode(requestedMode, propertyCount, individualLimit = 8) {
@@ -78,10 +136,15 @@
 
   return {
     periodKey,
+    comparisonPeriodKey,
     buildTimeline,
+    buildComparisonTimeline,
     buildSeries,
+    buildComparisonSeries,
     averageSeries,
     sampleCounts,
+    minimumAverageSampleSize,
+    coverageAwareAverage,
     resolveSeriesMode,
     nearestTimelineIndex,
     summary,
