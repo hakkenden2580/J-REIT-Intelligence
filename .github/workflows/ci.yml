@@ -31,5 +31,6 @@ jobs:
           node --check analysis-math.js
           node --check workspace-utils.js
           node --check map-analysis.js
+          node --check spatial-analysis.js
       - name: Check Python syntax without bytecode artifacts
         run: python3 -c 'import ast,pathlib; [ast.parse(p.read_text()) for p in pathlib.Path("scripts").rglob("*.py")]'
