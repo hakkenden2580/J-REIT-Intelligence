@@ -46,7 +46,7 @@ console.log(JSON.stringify({
         javascript = (ROOT / "app.js").read_text(encoding="utf-8")
         css = (ROOT / "comparison-analysis.css").read_text(encoding="utf-8")
 
-        self.assertIn("J-REIT Intelligence v0.20", html)
+        self.assertIn("J-REIT Intelligence v0.21", html)
         self.assertIn("individualSeriesLimit=8", javascript)
         self.assertIn('comparisonSeriesMode="auto"', javascript)
         self.assertIn('data-series-mode="${mode}"', javascript)

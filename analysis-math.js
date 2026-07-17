@@ -97,13 +97,50 @@
     return Math.max(3, Math.ceil(propertyCount * 0.1));
   }
 
-  function coverageAwareAverage(seriesList, minimumCount = minimumAverageSampleSize(seriesList.length)) {
-    const counts = sampleCounts(seriesList);
-    const unfiltered = averageSeries(seriesList);
+  function quantile(values, probability) {
+    const sorted = (values || [])
+      .filter(value => value != null && !Number.isNaN(Number(value)))
+      .map(Number)
+      .sort((a, b) => a - b);
+    if (!sorted.length) return null;
+    if (sorted.length === 1) return sorted[0];
+    const position = Math.max(0, Math.min(1, Number(probability) || 0)) * (sorted.length - 1);
+    const lower = Math.floor(position);
+    const upper = Math.ceil(position);
+    if (lower === upper) return sorted[lower];
+    const weight = position - lower;
+    return sorted[lower] * (1 - weight) + sorted[upper] * weight;
+  }
+
+  function distributionSeries(seriesList, minimumCount = minimumAverageSampleSize(seriesList.length)) {
+    if (!seriesList.length) {
+      return {average: [], median: [], q1: [], q3: [], counts: [], minimumCount};
+    }
+    const points = seriesList[0].map((_, index) =>
+      seriesList
+        .map(series => series[index])
+        .filter(value => value != null && !Number.isNaN(Number(value)))
+        .map(Number)
+    );
+    const visible = values => values.length >= minimumCount;
     return {
-      average: unfiltered.map((value, index) => counts[index] >= minimumCount ? value : null),
-      counts,
+      average: points.map(values =>
+        visible(values) ? values.reduce((sum, value) => sum + value, 0) / values.length : null
+      ),
+      median: points.map(values => visible(values) ? quantile(values, 0.5) : null),
+      q1: points.map(values => visible(values) ? quantile(values, 0.25) : null),
+      q3: points.map(values => visible(values) ? quantile(values, 0.75) : null),
+      counts: points.map(values => values.length),
       minimumCount,
+    };
+  }
+
+  function coverageAwareAverage(seriesList, minimumCount = minimumAverageSampleSize(seriesList.length)) {
+    const distribution = distributionSeries(seriesList, minimumCount);
+    return {
+      average: distribution.average,
+      counts: distribution.counts,
+      minimumCount: distribution.minimumCount,
     };
   }
 
@@ -144,6 +181,8 @@
     averageSeries,
     sampleCounts,
     minimumAverageSampleSize,
+    quantile,
+    distributionSeries,
     coverageAwareAverage,
     resolveSeriesMode,
     nearestTimelineIndex,
