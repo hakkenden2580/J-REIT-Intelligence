@@ -1,4 +1,4 @@
-let properties=[];let visible=[];let selected=null;let pdfCatalog=null;let comparisonMetric="cap";let workspaceView="map";let mapBoundsFilter=null;
+let properties=[];let visible=[];let selected=null;let pdfCatalog=null;let comparisonMetric="cap";let workspaceView="map";let mapBoundsFilter=null;let radiusFilter=null;let radiusCircle=null;let radiusPickMode=false;
 const comparisonIds=new Set(),comparisonLimit=8;
 const comparisonStorageKey="pip-comparison-ids-v0.14",workspaceViewStorageKey="pip-workspace-view-v0.14";
 const comparisonColors=["#2563eb","#db2777","#059669","#d97706","#7c3aed","#0891b2","#dc2626","#4f46e5"];
@@ -34,12 +34,15 @@ function currentMapBounds(){
 }
 
 function updateMapAnalysisControls(message=""){
-  const filterButton=document.querySelector("#filterMapBounds"),clearButton=document.querySelector("#clearMapBounds"),selectButton=document.querySelector("#selectVisible"),status=document.querySelector("#mapActionStatus");
+  const filterButton=document.querySelector("#filterMapBounds"),clearButton=document.querySelector("#clearMapBounds"),radiusButton=document.querySelector("#toggleRadiusSearch"),selectButton=document.querySelector("#selectVisible"),status=document.querySelector("#mapActionStatus");
   filterButton.classList.toggle("active",Boolean(mapBoundsFilter));
   filterButton.textContent=mapBoundsFilter?"この地図範囲で更新":"この地図範囲で検索";
   clearButton.hidden=!mapBoundsFilter;
+  radiusButton.classList.toggle("active",Boolean(radiusFilter));
   selectButton.disabled=!visible.length||comparisonIds.size>=comparisonLimit;
-  status.textContent=message||(mapBoundsFilter?`地図範囲内 ${visible.length.toLocaleString("ja-JP")}件`:(map.getZoom()>=9?"鑑定CRを数値表示":"拡大すると鑑定CRを数値表示"));
+  const activeFilters=[mapBoundsFilter?"地図範囲":"",radiusFilter?`半径${radiusFilter.radiusKm}km`:""].filter(Boolean);
+  status.textContent=message||(activeFilters.length?`${activeFilters.join("＋")}・${visible.length.toLocaleString("ja-JP")}件`:(map.getZoom()>=9?"鑑定CRを数値表示":"拡大すると鑑定CRを数値表示"));
+  updateRadiusControls();
 }
 
 function renderMapMarkers(){
@@ -71,6 +74,48 @@ function selectVisibleForComparison(){
   persistComparison();render();
   const added=comparisonIds.size-before,remaining=Math.max(0,visible.filter(property=>!comparisonIds.has(property.id)).length);
   updateMapAnalysisControls(`${added}件を比較へ追加${remaining?`・上限${comparisonLimit}件`:""}`);
+}
+
+function updateRadiusControls(){
+  const panel=document.querySelector("#radiusPanel"),button=document.querySelector("#toggleRadiusSearch"),clearButton=document.querySelector("#clearRadius"),status=document.querySelector("#radiusStatus");
+  button.setAttribute("aria-expanded",String(!panel.hidden));
+  clearButton.hidden=!radiusFilter;
+  if(radiusPickMode)status.textContent="地図上で検索の中心をクリックしてください。";
+  else if(radiusFilter)status.textContent=`${radiusFilter.label}・半径${radiusFilter.radiusKm}km・${visible.length.toLocaleString("ja-JP")}件`;
+  else status.textContent="中心位置を指定してください。";
+  document.querySelector("#mapView").classList.toggle("radius-picking",radiusPickMode);
+}
+
+function renderRadiusOverlay(){
+  if(radiusCircle){map.removeLayer(radiusCircle);radiusCircle=null}
+  if(!radiusFilter)return;
+  radiusCircle=L.circle([radiusFilter.lat,radiusFilter.lng],{radius:radiusFilter.radiusKm*1000,color:"#2563eb",weight:2,fillColor:"#60a5fa",fillOpacity:.2,className:"radius-circle"}).addTo(map);
+}
+
+function applyRadiusFilter(center,label="指定地点"){
+  const point=PIPSpatialAnalysis.coordinates(center);
+  if(!point)return;
+  radiusFilter={...point,radiusKm:PIPSpatialAnalysis.normalizeRadiusKm(document.querySelector("#radiusKm").value),label};
+  radiusPickMode=false;
+  renderRadiusOverlay();
+  render();
+  updateMapAnalysisControls(`${label}から半径${radiusFilter.radiusKm}km・${visible.length.toLocaleString("ja-JP")}件`);
+}
+
+function beginRadiusPick(){
+  radiusPickMode=true;
+  updateRadiusControls();
+}
+
+function clearRadiusFilter(){
+  radiusFilter=null;radiusPickMode=false;renderRadiusOverlay();render();
+}
+
+function toggleRadiusPanel(force){
+  const panel=document.querySelector("#radiusPanel");
+  panel.hidden=typeof force==="boolean"?!force:!panel.hidden;
+  if(panel.hidden)radiusPickMode=false;
+  updateRadiusControls();
 }
 
 const normalizedPropertyName=value=>String(value||"").normalize("NFKC").replace(/[\s　]/g,"").replace(/[（(]追加取得[）)]/g,"");
@@ -239,9 +284,10 @@ function selectProperty(p){
   const metricOptions=Object.entries(metrics).map(([key,item])=>`<option value="${key}"${key===defaultMetric?" selected":""}>${item.label}</option>`).join("");
   const comparableCards=comparablesFor(p).map(item=>`<button class="comparable" data-property-id="${esc(item.property.id)}"><span class="score">類似度 ${item.score}</span><b>${esc(item.property.name)}</b><small>${item.distance==null?"距離不明":`${item.distance.toFixed(1)}km`}・CR ${pct(item.property.cap)}・${area(item.property.leasable_area)}</small></button>`).join("");
   const inComparison=comparisonIds.has(p.id);
-  document.querySelector("#detail").innerHTML=`<h2>${esc(p.name)}</h2><div class="address">${esc(p.address)}</div><div><span class="pill">${esc(p.type)}</span>${p.geocode?.quality==="automatic"?'<span class="pill neutral">座標：自動取得</span>':""}</div><button id="detailCompare" class="detail-compare-button${inComparison?" selected":""}">${inComparison?"比較対象から外す":"比較分析に追加"}</button><div class="metrics"><div class="metric"><span>取得価格</span><b>${yen(p.price)}</b></div><div class="metric"><span>鑑定評価額</span><b>${yen(p.appraisal)}</b></div><div class="metric"><span>直接還元利回り（CR）</span><b>${pct(p.cap)}</b></div><div class="metric"><span>稼働率</span><b>${pct(p.occupancy)}</b></div><div class="metric"><span>NOI（当期）</span><b>${yen(p.noi)}</b></div><div class="metric"><span>期末簿価</span><b>${yen(p.book_value)}</b></div><div class="metric"><span>賃貸可能面積</span><b>${area(p.leasable_area)}</b></div><div class="metric"><span>テナント数</span><b>${text(p.tenants)}</b></div></div>${pdfEventPanel(p)}<section class="analysis"><div class="analysis-heading"><div><span class="eyebrow">HISTORY</span><h3>物件データの推移</h3></div><select id="historyMetric" aria-label="推移指標">${metricOptions}</select></div><canvas id="historyChart" aria-label="物件データ推移グラフ"></canvas><div id="historySummary"></div></section><section class="analysis"><div class="analysis-heading"><div><span class="eyebrow">COMPARABLES</span><h3>類似物件 上位5件</h3></div></div><p class="method">距離35%、面積25%、取得価格15%、CR15%、稼働率10%で算出</p><div class="comparable-list">${comparableCards||'<p class="empty">比較できる物件がありません。</p>'}</div></section>${sourcePanel(p)}`;
+  document.querySelector("#detail").innerHTML=`<h2>${esc(p.name)}</h2><div class="address">${esc(p.address)}</div><div><span class="pill">${esc(p.type)}</span>${p.geocode?.quality==="automatic"?'<span class="pill neutral">座標：自動取得</span>':""}</div><button id="detailCompare" class="detail-compare-button${inComparison?" selected":""}">${inComparison?"比較対象から外す":"比較分析に追加"}</button>${p.lat!=null&&p.lng!=null?'<button id="detailRadiusSearch" class="detail-spatial-button">この物件を中心に半径検索</button>':""}<div class="metrics"><div class="metric"><span>取得価格</span><b>${yen(p.price)}</b></div><div class="metric"><span>鑑定評価額</span><b>${yen(p.appraisal)}</b></div><div class="metric"><span>直接還元利回り（CR）</span><b>${pct(p.cap)}</b></div><div class="metric"><span>稼働率</span><b>${pct(p.occupancy)}</b></div><div class="metric"><span>NOI（当期）</span><b>${yen(p.noi)}</b></div><div class="metric"><span>期末簿価</span><b>${yen(p.book_value)}</b></div><div class="metric"><span>賃貸可能面積</span><b>${area(p.leasable_area)}</b></div><div class="metric"><span>テナント数</span><b>${text(p.tenants)}</b></div></div>${pdfEventPanel(p)}<section class="analysis"><div class="analysis-heading"><div><span class="eyebrow">HISTORY</span><h3>物件データの推移</h3></div><select id="historyMetric" aria-label="推移指標">${metricOptions}</select></div><canvas id="historyChart" aria-label="物件データ推移グラフ"></canvas><div id="historySummary"></div></section><section class="analysis"><div class="analysis-heading"><div><span class="eyebrow">COMPARABLES</span><h3>類似物件 上位5件</h3></div></div><p class="method">距離35%、面積25%、取得価格15%、CR15%、稼働率10%で算出</p><div class="comparable-list">${comparableCards||'<p class="empty">比較できる物件がありません。</p>'}</div></section>${sourcePanel(p)}`;
   const selector=document.querySelector("#historyMetric");selector.onchange=()=>drawHistory(p,selector.value);drawHistory(p,selector.value);
   document.querySelector("#detailCompare").onclick=()=>toggleComparison(p.id);
+  const radiusButton=document.querySelector("#detailRadiusSearch");if(radiusButton)radiusButton.onclick=()=>{toggleRadiusPanel(true);applyRadiusFilter(p,`${p.name}中心`)};
   document.querySelectorAll(".comparable").forEach(button=>button.onclick=()=>selectProperty(properties.find(item=>item.id===button.dataset.propertyId)));
   document.querySelectorAll(".item").forEach(item=>item.classList.toggle("active",item.dataset.id===p.id));
   renderMapMarkers();
@@ -426,12 +472,13 @@ function clearComparison({closeDialog=false}={}){
 function resetFilters(){
   document.querySelector("#search").value="";reitFilter.value="";typeFilter.value="";region.value="";
   numericFilterIds.forEach(id=>document.querySelector(`#${id}`).value="");
-  document.querySelector("#sort").value="name-asc";mapBoundsFilter=null;render();
+  document.querySelector("#sort").value="name-asc";mapBoundsFilter=null;radiusFilter=null;radiusPickMode=false;renderRadiusOverlay();render();
 }
 
 function render(){
   const filtered=PIPWorkspace.filterAndSort(properties,currentFilters());
-  visible=mapBoundsFilter?filtered.filter(property=>PIPMapAnalysis.boundsContain(property,mapBoundsFilter)):filtered;
+  const bounded=mapBoundsFilter?filtered.filter(property=>PIPMapAnalysis.boundsContain(property,mapBoundsFilter)):filtered;
+  visible=radiusFilter?bounded.filter(property=>PIPSpatialAnalysis.withinRadius(property,radiusFilter)):bounded;
   document.querySelector("#count").textContent=visible.length;
   document.querySelector("#list").innerHTML=visible.map(p=>`<div class="item${selected?.id===p.id?" active":""}" data-id="${esc(p.id)}"><b>${esc(p.name)}</b><small>${esc(p.address)}</small><br><span class="pill">${esc(p.region||p.type)}・CR ${pct(p.cap)}</span><button class="compare-toggle${comparisonIds.has(p.id)?" selected":""}" data-compare-id="${esc(p.id)}" aria-pressed="${comparisonIds.has(p.id)}">${comparisonIds.has(p.id)?"✓ 比較":"＋ 比較"}</button></div>`).join("")||'<p class="range-empty-note">この条件・地図範囲に該当する物件はありません。</p>';
   renderMapMarkers();
@@ -453,10 +500,17 @@ document.querySelector("#clearSelection").onclick=()=>clearComparison();
 document.querySelector("#openSelectedAnalysis").onclick=()=>setWorkspaceView("analysis");
 document.querySelector("#filterMapBounds").onclick=applyMapBoundsFilter;
 document.querySelector("#clearMapBounds").onclick=clearMapBoundsFilter;
+document.querySelector("#toggleRadiusSearch").onclick=()=>toggleRadiusPanel();
+document.querySelector("#closeRadiusPanel").onclick=()=>toggleRadiusPanel(false);
+document.querySelector("#radiusFromCenter").onclick=()=>applyRadiusFilter(map.getCenter(),"地図中心");
+document.querySelector("#radiusPick").onclick=beginRadiusPick;
+document.querySelector("#clearRadius").onclick=clearRadiusFilter;
+document.querySelector("#radiusKm").onchange=()=>{if(radiusFilter)applyRadiusFilter(radiusFilter,radiusFilter.label)};
 document.querySelector("#selectVisible").onclick=selectVisibleForComparison;
 document.querySelector("#export").onclick=()=>downloadCsv(visible,"jreit-visible-properties.csv");
 document.querySelector("#exportSelected").onclick=()=>downloadCsv(comparedProperties(),"jreit-selected-properties.csv");
 map.on("zoomend",()=>{renderMapMarkers();updateMapAnalysisControls()});
+map.on("click",event=>{if(radiusPickMode)applyRadiusFilter(event.latlng,"指定地点")});
 window.addEventListener("resize",()=>{if(selected){const metric=document.querySelector("#historyMetric");if(metric)drawHistory(selected,metric.value)}if(document.querySelector("#comparisonDialog").open)drawComparisonChart(comparedProperties(),comparisonMetric);if(workspaceView==="analysis")drawComparisonChart(comparedProperties(),comparisonMetric,"workspaceComparisonChart")});
 renderCapLegend();
 loadData().catch(err=>{document.querySelector("#dataset").textContent="読込エラー";document.querySelector("#detail").innerHTML=`<p class="error">データを読み込めませんでした。${esc(err.message)}</p>`});
