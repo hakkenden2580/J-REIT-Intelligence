@@ -21,6 +21,8 @@ console.log(JSON.stringify({
   missing: spatial.withinRadius({lat:null,lng:139},center),
   radius: [
     spatial.normalizeRadiusKm("10"),
+    spatial.normalizeRadiusKm("100"),
+    spatial.normalizeRadiusKm("0"),
     spatial.normalizeRadiusKm("-1"),
     spatial.normalizeRadiusKm("invalid",5),
   ],
@@ -40,13 +42,13 @@ console.log(JSON.stringify({
         self.assertTrue(payload["inside"])
         self.assertFalse(payload["outside"])
         self.assertFalse(payload["missing"])
-        self.assertEqual(payload["radius"], [10, 3, 5])
+        self.assertEqual(payload["radius"], [10, 50, 0.5, 3, 5])
 
     def test_radius_search_ui_contract_is_present(self):
         html = (ROOT / "index.html").read_text(encoding="utf-8")
         javascript = (ROOT / "app.js").read_text(encoding="utf-8")
         css = (ROOT / "spatial-analysis.css").read_text(encoding="utf-8")
-        self.assertIn("J-REIT Intelligence v0.16", html)
+        self.assertIn("J-REIT Intelligence v0.17", html)
         for control_id in (
             "toggleRadiusSearch", "radiusPanel", "radiusKm",
             "radiusFromCenter", "radiusPick", "clearRadius", "radiusStatus",

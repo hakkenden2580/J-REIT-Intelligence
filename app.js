@@ -1,7 +1,8 @@
-let properties=[];let visible=[];let selected=null;let pdfCatalog=null;let comparisonMetric="cap";let workspaceView="map";let mapBoundsFilter=null;let radiusFilter=null;let radiusCircle=null;let radiusPickMode=false;
-const comparisonIds=new Set(),comparisonLimit=8;
+let properties=[];let visible=[];let selected=null;let pdfCatalog=null;let comparisonMetric="cap";let workspaceView="map";let mapBoundsFilter=null;let radiusFilter=null;let radiusCircle=null;let radiusHandle=null;let radiusPickMode=false;let boxSelectionMode=false;let boxStart=null;let selectionBox=null;
+const comparisonIds=new Set(),comparisonLimit=50;
 const comparisonStorageKey="pip-comparison-ids-v0.14",workspaceViewStorageKey="pip-workspace-view-v0.14";
-const comparisonColors=["#2563eb","#db2777","#059669","#d97706","#7c3aed","#0891b2","#dc2626","#4f46e5"];
+const comparisonColors=["#2563eb","#db2777","#059669","#d97706","#7c3aed","#0891b2","#dc2626","#4f46e5","#65a30d","#ea580c","#9333ea","#0f766e","#be123c","#0369a1","#a16207","#15803d","#c026d3","#4338ca","#b91c1c","#047857"];
+const comparisonColor=index=>index<comparisonColors.length?comparisonColors[index]:`hsl(${Math.round((index*137.508)%360)} 72% ${42+(index%3)*8}%)`;
 const map=L.map("map").setView([35.55,139.55],7);
 L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",{attribution:"&copy; OpenStreetMap contributors"}).addTo(map);
 const markers=L.layerGroup().addTo(map);
@@ -9,6 +10,7 @@ const yen=n=>n==null?"—":`${Number(n).toLocaleString("ja-JP",{maximumFractionD
 const pct=n=>n==null?"—":`${Number(n).toFixed(1)}%`;
 const area=n=>n==null?"—":`${Number(n).toLocaleString("ja-JP")}㎡`;
 const text=n=>n==null?"—":Number(n).toLocaleString("ja-JP");
+const radiusText=n=>Number(n).toLocaleString("ja-JP",{maximumFractionDigits:1});
 const esc=s=>String(s??"").replace(/[&<>'"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;","'":"&#39;",'"':"&quot;"}[c]));
 const safeUrl=value=>{try{const url=new URL(String(value||""));return ["https:","http:"].includes(url.protocol)?url.href:""}catch{return""}};
 const reitFilter=document.querySelector("#reit"),typeFilter=document.querySelector("#type"),region=document.querySelector("#region");
@@ -34,13 +36,17 @@ function currentMapBounds(){
 }
 
 function updateMapAnalysisControls(message=""){
-  const filterButton=document.querySelector("#filterMapBounds"),clearButton=document.querySelector("#clearMapBounds"),radiusButton=document.querySelector("#toggleRadiusSearch"),selectButton=document.querySelector("#selectVisible"),status=document.querySelector("#mapActionStatus");
+  const filterButton=document.querySelector("#filterMapBounds"),clearButton=document.querySelector("#clearMapBounds"),radiusButton=document.querySelector("#toggleRadiusSearch"),boxButton=document.querySelector("#toggleBoxSelection"),clearBoxButton=document.querySelector("#clearBoxSelection"),selectButton=document.querySelector("#selectVisible"),status=document.querySelector("#mapActionStatus");
   filterButton.classList.toggle("active",Boolean(mapBoundsFilter));
   filterButton.textContent=mapBoundsFilter?"この地図範囲で更新":"この地図範囲で検索";
   clearButton.hidden=!mapBoundsFilter;
   radiusButton.classList.toggle("active",Boolean(radiusFilter));
+  boxButton.classList.toggle("active",boxSelectionMode);
+  boxButton.setAttribute("aria-pressed",String(boxSelectionMode));
+  boxButton.textContent=boxSelectionMode?"地図をドラッグ":"範囲をドラッグ選択";
+  clearBoxButton.hidden=!selectionBox;
   selectButton.disabled=!visible.length||comparisonIds.size>=comparisonLimit;
-  const activeFilters=[mapBoundsFilter?"地図範囲":"",radiusFilter?`半径${radiusFilter.radiusKm}km`:""].filter(Boolean);
+  const activeFilters=[mapBoundsFilter?"地図範囲":"",radiusFilter?`半径${radiusText(radiusFilter.radiusKm)}km`:""].filter(Boolean);
   status.textContent=message||(activeFilters.length?`${activeFilters.join("＋")}・${visible.length.toLocaleString("ja-JP")}件`:(map.getZoom()>=9?"鑑定CRを数値表示":"拡大すると鑑定CRを数値表示"));
   updateRadiusControls();
 }
@@ -81,15 +87,36 @@ function updateRadiusControls(){
   button.setAttribute("aria-expanded",String(!panel.hidden));
   clearButton.hidden=!radiusFilter;
   if(radiusPickMode)status.textContent="地図上で検索の中心をクリックしてください。";
-  else if(radiusFilter)status.textContent=`${radiusFilter.label}・半径${radiusFilter.radiusKm}km・${visible.length.toLocaleString("ja-JP")}件`;
-  else status.textContent="中心位置を指定してください。";
+  else if(radiusFilter)status.textContent=`${radiusFilter.label}・半径${radiusText(radiusFilter.radiusKm)}km・${visible.length.toLocaleString("ja-JP")}件`;
+  else status.textContent="中心位置を指定してください。検索後は円周のハンドルもドラッグできます。";
+  syncRadiusInput();
   document.querySelector("#mapView").classList.toggle("radius-picking",radiusPickMode);
+  document.querySelector("#mapView").classList.toggle("box-selecting",boxSelectionMode);
+}
+
+function syncRadiusInput(){
+  const input=document.querySelector("#radiusKm"),output=document.querySelector("#radiusValue");
+  const value=radiusFilter?.radiusKm??PIPSpatialAnalysis.normalizeRadiusKm(input.value);
+  input.value=value;output.value=`${radiusText(value)} km`;output.textContent=output.value;
 }
 
 function renderRadiusOverlay(){
   if(radiusCircle){map.removeLayer(radiusCircle);radiusCircle=null}
+  if(radiusHandle){map.removeLayer(radiusHandle);radiusHandle=null}
   if(!radiusFilter)return;
   radiusCircle=L.circle([radiusFilter.lat,radiusFilter.lng],{radius:radiusFilter.radiusKm*1000,color:"#2563eb",weight:2,fillColor:"#60a5fa",fillOpacity:.2,className:"radius-circle"}).addTo(map);
+  const handlePoint=PIPSpatialAnalysis.destinationPoint(radiusFilter,radiusFilter.radiusKm);
+  const icon=L.divIcon({className:"radius-resize-handle-shell",html:'<span class="radius-resize-handle"></span>',iconSize:[24,24],iconAnchor:[12,12]});
+  radiusHandle=L.marker([handlePoint.lat,handlePoint.lng],{icon,draggable:true,zIndexOffset:1000}).addTo(map).bindTooltip("ドラッグして半径を調整",{direction:"top"});
+  radiusHandle.on("drag",event=>{
+    const radiusKm=PIPSpatialAnalysis.normalizeRadiusKm(PIPSpatialAnalysis.haversineKm(radiusFilter,event.target.getLatLng()));
+    radiusFilter={...radiusFilter,radiusKm};radiusCircle.setRadius(radiusKm*1000);syncRadiusInput();
+    document.querySelector("#radiusStatus").textContent=`半径${radiusText(radiusKm)}kmに調整中`;
+  });
+  radiusHandle.on("dragend",()=>{
+    renderRadiusOverlay();render();
+    updateMapAnalysisControls(`半径${radiusText(radiusFilter.radiusKm)}km・${visible.length.toLocaleString("ja-JP")}件`);
+  });
 }
 
 function applyRadiusFilter(center,label="指定地点"){
@@ -99,10 +126,11 @@ function applyRadiusFilter(center,label="指定地点"){
   radiusPickMode=false;
   renderRadiusOverlay();
   render();
-  updateMapAnalysisControls(`${label}から半径${radiusFilter.radiusKm}km・${visible.length.toLocaleString("ja-JP")}件`);
+  updateMapAnalysisControls(`${label}から半径${radiusText(radiusFilter.radiusKm)}km・${visible.length.toLocaleString("ja-JP")}件`);
 }
 
 function beginRadiusPick(){
+  if(boxSelectionMode)setBoxSelectionMode(false);
   radiusPickMode=true;
   updateRadiusControls();
 }
@@ -116,6 +144,29 @@ function toggleRadiusPanel(force){
   panel.hidden=typeof force==="boolean"?!force:!panel.hidden;
   if(panel.hidden)radiusPickMode=false;
   updateRadiusControls();
+}
+
+function clearSelectionBox(){
+  if(selectionBox){map.removeLayer(selectionBox);selectionBox=null}
+  boxStart=null;updateMapAnalysisControls();
+}
+
+function setBoxSelectionMode(enabled){
+  boxSelectionMode=Boolean(enabled);boxStart=null;
+  if(boxSelectionMode){
+    toggleRadiusPanel(false);radiusPickMode=false;clearSelectionBox();map.dragging.disable();
+  }else map.dragging.enable();
+  updateMapAnalysisControls();
+}
+
+function finishBoxSelection(bounds){
+  const box={south:bounds.getSouth(),north:bounds.getNorth(),west:bounds.getWest(),east:bounds.getEast()};
+  const candidates=visible.filter(property=>PIPMapAnalysis.boundsContain(property,box));
+  const before=comparisonIds.size,selectedIds=PIPMapAnalysis.selectIds(candidates,comparisonIds,comparisonLimit);
+  comparisonIds.clear();selectedIds.forEach(id=>comparisonIds.add(id));
+  const added=comparisonIds.size-before,truncated=Math.max(0,candidates.length-added);
+  persistComparison();setBoxSelectionMode(false);render();
+  updateMapAnalysisControls(`範囲内${candidates.length.toLocaleString("ja-JP")}件・${added}件を比較へ追加${truncated?`・上限${comparisonLimit}件`:""}`);
 }
 
 const normalizedPropertyName=value=>String(value||"").normalize("NFKC").replace(/[\s　]/g,"").replace(/[（(]追加取得[）)]/g,"");
@@ -370,7 +421,7 @@ function drawComparisonChart(selectedProperties,metricKey,canvasId="comparisonCh
     ctx.stroke();ctx.restore();
     if(!dashed)series.forEach((value,index)=>{if(value==null)return;ctx.fillStyle="#fff";ctx.strokeStyle=color;ctx.lineWidth=2;ctx.beginPath();ctx.arc(xAt(index),yAt(value),3,0,Math.PI*2);ctx.fill();ctx.stroke()});
   };
-  propertySeries.forEach((series,index)=>drawSeries(series,comparisonColors[index%comparisonColors.length]));
+  propertySeries.forEach((series,index)=>drawSeries(series,comparisonColor(index)));
   drawSeries(average,"#0f172a",{dashed:true,width:2.8});
   const step=Math.max(1,Math.ceil(timeline.length/8));ctx.textAlign="right";ctx.textBaseline="top";ctx.fillStyle="#64748b";ctx.font="10px sans-serif";
   timeline.forEach((point,index)=>{if(index%step!==0&&index!==timeline.length-1)return;ctx.save();ctx.translate(xAt(index),height-pad.bottom+10);ctx.rotate(-Math.PI/4);ctx.fillText(point.label,0,0);ctx.restore()});
@@ -379,13 +430,13 @@ function drawComparisonChart(selectedProperties,metricKey,canvasId="comparisonCh
 
 function renderComparisonAnalysis({contentId="comparisonContent",canvasId="comparisonChart",embedded=false}={}){
   const selectedProperties=comparedProperties(),content=document.querySelector(`#${contentId}`);
-  if(selectedProperties.length<2){content.innerHTML='<div class="analysis-empty"><div><b>比較する物件を2件以上選択してください</b><span>地図・一覧・物件リストの「＋ 比較」から最大8件を選択できます。</span></div></div>';return}
+  if(selectedProperties.length<2){content.innerHTML=`<div class="analysis-empty"><div><b>比較する物件を2件以上選択してください</b><span>地図・一覧・物件リストの「＋ 比較」から最大${comparisonLimit}件を選択できます。</span></div></div>`;return}
   const metric=metrics[comparisonMetric];
   const tabs=Object.entries(metrics).map(([key,item])=>`<button class="comparison-tab${key===comparisonMetric?" active":""}" data-comparison-metric="${key}">${esc(item.short)}</button>`).join("");
-  const legend=selectedProperties.map((property,index)=>`<span><i class="comparison-swatch" style="background:${comparisonColors[index%comparisonColors.length]}"></i>${esc(property.name)}</span>`).join("");
+  const legend=selectedProperties.map((property,index)=>`<span><i class="comparison-swatch" style="background:${comparisonColor(index)}"></i>${esc(property.name)}</span>`).join("");
   const rows=selectedProperties.map((property,index)=>{
     const summary=PIPAnalysis.summary(property,comparisonMetric);
-    return`<tr><td><div class="comparison-property"><i class="comparison-swatch" style="background:${comparisonColors[index%comparisonColors.length]}"></i><b>${esc(property.name)}</b><button data-remove-comparison="${esc(property.id)}" aria-label="${esc(property.name)}を比較から外す">×</button></div><small>${esc(property.reit)}</small></td><td>${comparisonValue(comparisonMetric,summary.first)}</td><td><b>${comparisonValue(comparisonMetric,summary.latest)}</b></td><td>${comparisonDelta(comparisonMetric,summary.change)}</td><td>${summary.count}期</td></tr>`;
+    return`<tr><td><div class="comparison-property"><i class="comparison-swatch" style="background:${comparisonColor(index)}"></i><b>${esc(property.name)}</b><button data-remove-comparison="${esc(property.id)}" aria-label="${esc(property.name)}を比較から外す">×</button></div><small>${esc(property.reit)}</small></td><td>${comparisonValue(comparisonMetric,summary.first)}</td><td><b>${comparisonValue(comparisonMetric,summary.latest)}</b></td><td>${comparisonDelta(comparisonMetric,summary.change)}</td><td>${summary.count}期</td></tr>`;
   }).join("");
   content.innerHTML=`${embedded?'<div class="workspace-analysis-heading"><div><span class="eyebrow">ANALYSIS WORKSPACE</span><h2>選択物件の時系列比較</h2></div><button id="openFullscreenAnalysis" class="secondary-button" type="button">全画面表示</button></div>':""}<div class="comparison-intro"><p>選択した物件を同じ時間軸で比較します。黒い破線は、各時点で値が開示されている選択物件の平均です。</p><span class="comparison-count">${selectedProperties.length} / ${comparisonLimit}物件</span></div><div class="comparison-tabs" role="tablist" aria-label="比較指標">${tabs}</div><div class="comparison-future"><span>専有坪単価：データ契約準備中</span><span>貸室賃料収入単価：定義統一後に追加</span></div><div class="comparison-chart-card"><div class="comparison-legend">${legend}<span><i class="comparison-swatch average"></i>平均値</span></div><canvas id="${esc(canvasId)}" aria-label="${esc(metric.label)}の複数物件比較グラフ"></canvas></div><section class="comparison-table"><h3>${esc(metric.label)} サマリー</h3><div class="table-scroll"><table><thead><tr><th>物件</th><th>開始値</th><th>最新値</th><th>期間変化</th><th>開示時点</th></tr></thead><tbody>${rows}</tbody></table></div></section><p class="privacy-note">比較値は各物件のEvidence付き時系列を使用します。平均は欠損値を除外して算出し、未開示値の補間は行いません。</p>`;
   content.querySelectorAll("[data-comparison-metric]").forEach(button=>button.onclick=()=>{comparisonMetric=button.dataset.comparisonMetric;embedded?renderWorkspaceAnalysis():renderComparisonAnalysis()});
@@ -472,7 +523,9 @@ function clearComparison({closeDialog=false}={}){
 function resetFilters(){
   document.querySelector("#search").value="";reitFilter.value="";typeFilter.value="";region.value="";
   numericFilterIds.forEach(id=>document.querySelector(`#${id}`).value="");
-  document.querySelector("#sort").value="name-asc";mapBoundsFilter=null;radiusFilter=null;radiusPickMode=false;renderRadiusOverlay();render();
+  document.querySelector("#sort").value="name-asc";mapBoundsFilter=null;radiusFilter=null;radiusPickMode=false;boxSelectionMode=false;boxStart=null;map.dragging.enable();
+  if(selectionBox){map.removeLayer(selectionBox);selectionBox=null}
+  renderRadiusOverlay();render();
 }
 
 function render(){
@@ -505,12 +558,38 @@ document.querySelector("#closeRadiusPanel").onclick=()=>toggleRadiusPanel(false)
 document.querySelector("#radiusFromCenter").onclick=()=>applyRadiusFilter(map.getCenter(),"地図中心");
 document.querySelector("#radiusPick").onclick=beginRadiusPick;
 document.querySelector("#clearRadius").onclick=clearRadiusFilter;
-document.querySelector("#radiusKm").onchange=()=>{if(radiusFilter)applyRadiusFilter(radiusFilter,radiusFilter.label)};
+document.querySelector("#radiusKm").oninput=event=>{
+  const radiusKm=PIPSpatialAnalysis.normalizeRadiusKm(event.target.value);
+  document.querySelector("#radiusValue").textContent=`${radiusText(radiusKm)} km`;
+  if(radiusFilter){
+    radiusFilter={...radiusFilter,radiusKm};
+    if(radiusCircle)radiusCircle.setRadius(radiusKm*1000);
+    const handlePoint=PIPSpatialAnalysis.destinationPoint(radiusFilter,radiusKm);
+    if(radiusHandle)radiusHandle.setLatLng(handlePoint);
+    document.querySelector("#radiusStatus").textContent=`半径${radiusText(radiusKm)}kmに調整中`;
+  }
+};
+document.querySelector("#radiusKm").onchange=()=>{if(radiusFilter){renderRadiusOverlay();render();updateMapAnalysisControls(`半径${radiusText(radiusFilter.radiusKm)}km・${visible.length.toLocaleString("ja-JP")}件`)}};
+document.querySelector("#toggleBoxSelection").onclick=()=>setBoxSelectionMode(!boxSelectionMode);
+document.querySelector("#clearBoxSelection").onclick=clearSelectionBox;
 document.querySelector("#selectVisible").onclick=selectVisibleForComparison;
 document.querySelector("#export").onclick=()=>downloadCsv(visible,"jreit-visible-properties.csv");
 document.querySelector("#exportSelected").onclick=()=>downloadCsv(comparedProperties(),"jreit-selected-properties.csv");
 map.on("zoomend",()=>{renderMapMarkers();updateMapAnalysisControls()});
 map.on("click",event=>{if(radiusPickMode)applyRadiusFilter(event.latlng,"指定地点")});
+map.on("mousedown",event=>{
+  if(!boxSelectionMode)return;
+  boxStart=event.latlng;
+  if(selectionBox)map.removeLayer(selectionBox);
+  selectionBox=L.rectangle(L.latLngBounds(boxStart,boxStart),{color:"#b45309",weight:2,dashArray:"6 4",fillColor:"#f59e0b",fillOpacity:.16,className:"selection-box"}).addTo(map);
+  updateMapAnalysisControls("選択する範囲までドラッグしてください");
+});
+map.on("mousemove",event=>{if(boxSelectionMode&&boxStart&&selectionBox)selectionBox.setBounds(L.latLngBounds(boxStart,event.latlng))});
+map.on("mouseup",event=>{
+  if(!boxSelectionMode||!boxStart||!selectionBox)return;
+  selectionBox.setBounds(L.latLngBounds(boxStart,event.latlng));boxStart=null;finishBoxSelection(selectionBox.getBounds());
+});
+window.addEventListener("keydown",event=>{if(event.key==="Escape"&&boxSelectionMode){setBoxSelectionMode(false);clearSelectionBox()}});
 window.addEventListener("resize",()=>{if(selected){const metric=document.querySelector("#historyMetric");if(metric)drawHistory(selected,metric.value)}if(document.querySelector("#comparisonDialog").open)drawComparisonChart(comparedProperties(),comparisonMetric);if(workspaceView==="analysis")drawComparisonChart(comparedProperties(),comparisonMetric,"workspaceComparisonChart")});
 renderCapLegend();
 loadData().catch(err=>{document.querySelector("#dataset").textContent="読込エラー";document.querySelector("#detail").innerHTML=`<p class="error">データを読み込めませんでした。${esc(err.message)}</p>`});

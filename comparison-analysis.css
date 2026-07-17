@@ -15,7 +15,7 @@
 .comparison-tab.active{background:#172554;color:#fff;border-color:#172554}
 .comparison-future{display:flex;gap:7px;flex-wrap:wrap;margin:2px 0 14px}
 .comparison-future span{border:1px dashed #cbd5e1;color:#64748b;border-radius:999px;padding:5px 9px;font-size:10px}
-.comparison-legend{display:flex;gap:12px 18px;flex-wrap:wrap;margin:5px 0 10px;font-size:11px}
+.comparison-legend{display:flex;gap:12px 18px;flex-wrap:wrap;max-height:86px;overflow:auto;margin:5px 0 10px;padding-right:5px;font-size:11px}
 .comparison-legend span{display:inline-flex;align-items:center;gap:6px}
 .comparison-swatch{width:11px;height:11px;border-radius:50%;display:inline-block}
 .comparison-swatch.average{border-radius:0;height:3px;width:16px;background:#0f172a}
