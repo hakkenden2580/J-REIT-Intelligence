@@ -46,7 +46,7 @@ console.log(JSON.stringify({
         html = (ROOT / "index.html").read_text(encoding="utf-8")
         javascript = (ROOT / "app.js").read_text(encoding="utf-8")
         css = (ROOT / "map-analysis.css").read_text(encoding="utf-8")
-        self.assertIn("J-REIT Intelligence v0.17", html)
+        self.assertIn("J-REIT Intelligence v0.18", html)
         for control_id in (
             "filterMapBounds", "clearMapBounds", "selectVisible",
             "mapActionStatus", "capLegend",
