@@ -1,5 +1,6 @@
-let properties=[];let visible=[];let selected=null;let pdfCatalog=null;let comparisonMetric="cap";
+let properties=[];let visible=[];let selected=null;let pdfCatalog=null;let comparisonMetric="cap";let workspaceView="map";
 const comparisonIds=new Set(),comparisonLimit=8;
+const comparisonStorageKey="pip-comparison-ids-v0.14",workspaceViewStorageKey="pip-workspace-view-v0.14";
 const comparisonColors=["#2563eb","#db2777","#059669","#d97706","#7c3aed","#0891b2","#dc2626","#4f46e5"];
 const map=L.map("map").setView([35.55,139.55],7);
 L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",{attribution:"&copy; OpenStreetMap contributors"}).addTo(map);
@@ -11,6 +12,7 @@ const text=n=>n==null?"—":Number(n).toLocaleString("ja-JP");
 const esc=s=>String(s??"").replace(/[&<>'"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;","'":"&#39;",'"':"&quot;"}[c]));
 const safeUrl=value=>{try{const url=new URL(String(value||""));return ["https:","http:"].includes(url.protocol)?url.href:""}catch{return""}};
 const reitFilter=document.querySelector("#reit"),typeFilter=document.querySelector("#type"),region=document.querySelector("#region");
+const numericFilterIds=["capMin","capMax","occupancyMin","occupancyMax","priceMin","priceMax","areaMin","areaMax"];
 const metrics={
   cap:{label:"直接還元利回り（CR）",short:"CR",format:pct,color:"#2563eb"},
   noi:{label:"NOI（当期）",short:"NOI",format:yen,color:"#059669"},
@@ -134,6 +136,19 @@ function sourcePanel(p){
   return`<div class="source"><b>出典・Evidence</b><p>${esc(src.document||src.title)}・${esc(src.period)}</p><p>取得日時：${esc(retrieved)}<br>SHA-256：<code>${esc((src.sha256||"").slice(0,16))}${src.sha256?"…":"未記録"}</code></p>${url?`<a href="${esc(url)}" target="_blank" rel="noopener">公式IRライブラリを開く</a>`:""}<details><summary>数値ごとの抽出位置</summary><ul>${entries||legacy||"<li>位置情報なし</li>"}</ul></details></div>`;
 }
 
+function persistComparison(){
+  try{localStorage.setItem(comparisonStorageKey,JSON.stringify([...comparisonIds]))}catch{}
+}
+
+function restoreWorkspaceState(){
+  try{
+    const saved=JSON.parse(localStorage.getItem(comparisonStorageKey)||"[]");
+    saved.filter(id=>properties.some(property=>property.id===id)).slice(0,comparisonLimit).forEach(id=>comparisonIds.add(id));
+    const savedView=localStorage.getItem(workspaceViewStorageKey);
+    if(["map","table","analysis"].includes(savedView))workspaceView=savedView;
+  }catch{}
+}
+
 async function loadData(){
   const supplementPromise=loadPdfSupplement();
   let payload;
@@ -141,13 +156,14 @@ async function loadData(){
   catch{payload=await (await fetch("data/demo-properties.json")).json()}
   properties=payload.properties.map(p=>({...p,periods:p.periods?.length?p.periods:[{period_no:null,period:"最新",as_of_date:null,cap:p.cap,noi:p.noi,occupancy:p.occupancy,appraisal:p.appraisal}]}));
   await supplementPromise;
+  restoreWorkspaceState();
   visible=[...properties];
   document.querySelector("#dataset").textContent=payload.meta.label;
   document.querySelector("#dataset").classList.toggle("demo",payload.meta.dataset==="demo");
   [...new Set(properties.map(x=>x.reit).filter(Boolean))].sort().forEach(x=>reitFilter.add(new Option(x,x)));
   [...new Set(properties.map(x=>x.type).filter(Boolean))].sort().forEach(x=>typeFilter.add(new Option(x,x)));
   [...new Set(properties.map(x=>x.region).filter(Boolean))].sort().forEach(x=>region.add(new Option(x,x)));
-  render();
+  render();updateComparisonButton();setWorkspaceView(workspaceView,{persist:false});
   const coords=properties.filter(p=>p.lat!=null&&p.lng!=null);
   if(coords.length)map.fitBounds(coords.map(p=>[p.lat,p.lng]),{padding:[30,30]});
 }
@@ -189,17 +205,27 @@ function toggleComparison(propertyId){
   if(comparisonIds.has(propertyId))comparisonIds.delete(propertyId);
   else if(comparisonIds.size>=comparisonLimit)window.alert(`比較できる物件は最大${comparisonLimit}件です。`);
   else comparisonIds.add(propertyId);
+  persistComparison();
   updateComparisonButton();
   render();
   if(selected?.id===propertyId)selectProperty(selected);
   const dialog=document.querySelector("#comparisonDialog");
   if(dialog.open)renderComparisonAnalysis();
+  if(workspaceView==="analysis")renderWorkspaceAnalysis();
 }
 
 function updateComparisonButton(){
   const button=document.querySelector("#comparisonButton"),count=comparisonIds.size;
   button.textContent=`比較分析 ${count}件`;
   button.disabled=count<2;
+  const panel=document.querySelector("#selectionPanel"),analysisButton=document.querySelector("#openSelectedAnalysis");
+  document.querySelector("#selectionCount").textContent=count;
+  panel.hidden=count===0;
+  analysisButton.disabled=count<2;
+  document.querySelector("#exportSelected").disabled=count===0;
+  document.querySelector("#selectionChips").innerHTML=comparedProperties().map(property=>`<span class="selection-chip">${esc(property.name)}<button type="button" data-selection-remove="${esc(property.id)}" aria-label="${esc(property.name)}を選択解除">×</button></span>`).join("");
+  document.querySelectorAll("[data-selection-remove]").forEach(remove=>remove.onclick=()=>toggleComparison(remove.dataset.selectionRemove));
+  document.querySelector("#workspaceSummary").textContent=`${visible.length.toLocaleString("ja-JP")}物件を表示・${count}件を選択`;
 }
 
 function comparisonValue(metricKey,value){
@@ -215,8 +241,8 @@ function comparisonDelta(metricKey,value){
     :`${sign}${Number(value).toFixed(1)}pt`;
 }
 
-function drawComparisonChart(selectedProperties,metricKey){
-  const canvas=document.querySelector("#comparisonChart");if(!canvas)return;
+function drawComparisonChart(selectedProperties,metricKey,canvasId="comparisonChart"){
+  const canvas=document.querySelector(`#${canvasId}`);if(!canvas)return;
   const timeline=PIPAnalysis.buildTimeline(selectedProperties);
   const propertySeries=selectedProperties.map(property=>PIPAnalysis.buildSeries(property,metricKey,timeline));
   const average=PIPAnalysis.averageSeries(propertySeries);
@@ -254,9 +280,9 @@ function drawComparisonChart(selectedProperties,metricKey){
   ctx.save();ctx.translate(16,pad.top+plotH/2);ctx.rotate(-Math.PI/2);ctx.textAlign="center";ctx.textBaseline="top";ctx.fillStyle="#475569";ctx.font="11px sans-serif";ctx.fillText(metrics[metricKey].label,0,0);ctx.restore();
 }
 
-function renderComparisonAnalysis(){
-  const selectedProperties=comparedProperties(),content=document.querySelector("#comparisonContent");
-  if(selectedProperties.length<2){content.innerHTML='<p class="empty">比較する物件を2件以上選択してください。</p>';return}
+function renderComparisonAnalysis({contentId="comparisonContent",canvasId="comparisonChart",embedded=false}={}){
+  const selectedProperties=comparedProperties(),content=document.querySelector(`#${contentId}`);
+  if(selectedProperties.length<2){content.innerHTML='<div class="analysis-empty"><div><b>比較する物件を2件以上選択してください</b><span>地図・一覧・物件リストの「＋ 比較」から最大8件を選択できます。</span></div></div>';return}
   const metric=metrics[comparisonMetric];
   const tabs=Object.entries(metrics).map(([key,item])=>`<button class="comparison-tab${key===comparisonMetric?" active":""}" data-comparison-metric="${key}">${esc(item.short)}</button>`).join("");
   const legend=selectedProperties.map((property,index)=>`<span><i class="comparison-swatch" style="background:${comparisonColors[index%comparisonColors.length]}"></i>${esc(property.name)}</span>`).join("");
@@ -264,16 +290,21 @@ function renderComparisonAnalysis(){
     const summary=PIPAnalysis.summary(property,comparisonMetric);
     return`<tr><td><div class="comparison-property"><i class="comparison-swatch" style="background:${comparisonColors[index%comparisonColors.length]}"></i><b>${esc(property.name)}</b><button data-remove-comparison="${esc(property.id)}" aria-label="${esc(property.name)}を比較から外す">×</button></div><small>${esc(property.reit)}</small></td><td>${comparisonValue(comparisonMetric,summary.first)}</td><td><b>${comparisonValue(comparisonMetric,summary.latest)}</b></td><td>${comparisonDelta(comparisonMetric,summary.change)}</td><td>${summary.count}期</td></tr>`;
   }).join("");
-  content.innerHTML=`<div class="comparison-intro"><p>選択した物件を同じ時間軸で比較します。黒い破線は、各時点で値が開示されている選択物件の平均です。</p><span class="comparison-count">${selectedProperties.length} / ${comparisonLimit}物件</span></div><div class="comparison-tabs" role="tablist" aria-label="比較指標">${tabs}</div><div class="comparison-future"><span>専有坪単価：データ契約準備中</span><span>貸室賃料収入単価：定義統一後に追加</span></div><div class="comparison-chart-card"><div class="comparison-legend">${legend}<span><i class="comparison-swatch average"></i>平均値</span></div><canvas id="comparisonChart" aria-label="${esc(metric.label)}の複数物件比較グラフ"></canvas></div><section class="comparison-table"><h3>${esc(metric.label)} サマリー</h3><div class="table-scroll"><table><thead><tr><th>物件</th><th>開始値</th><th>最新値</th><th>期間変化</th><th>開示時点</th></tr></thead><tbody>${rows}</tbody></table></div></section><p class="privacy-note">比較値は各物件のEvidence付き時系列を使用します。平均は欠損値を除外して算出し、未開示値の補間は行いません。</p>`;
-  document.querySelectorAll("[data-comparison-metric]").forEach(button=>button.onclick=()=>{comparisonMetric=button.dataset.comparisonMetric;renderComparisonAnalysis()});
-  document.querySelectorAll("[data-remove-comparison]").forEach(button=>button.onclick=()=>toggleComparison(button.dataset.removeComparison));
-  requestAnimationFrame(()=>drawComparisonChart(selectedProperties,comparisonMetric));
+  content.innerHTML=`${embedded?'<div class="workspace-analysis-heading"><div><span class="eyebrow">ANALYSIS WORKSPACE</span><h2>選択物件の時系列比較</h2></div><button id="openFullscreenAnalysis" class="secondary-button" type="button">全画面表示</button></div>':""}<div class="comparison-intro"><p>選択した物件を同じ時間軸で比較します。黒い破線は、各時点で値が開示されている選択物件の平均です。</p><span class="comparison-count">${selectedProperties.length} / ${comparisonLimit}物件</span></div><div class="comparison-tabs" role="tablist" aria-label="比較指標">${tabs}</div><div class="comparison-future"><span>専有坪単価：データ契約準備中</span><span>貸室賃料収入単価：定義統一後に追加</span></div><div class="comparison-chart-card"><div class="comparison-legend">${legend}<span><i class="comparison-swatch average"></i>平均値</span></div><canvas id="${esc(canvasId)}" aria-label="${esc(metric.label)}の複数物件比較グラフ"></canvas></div><section class="comparison-table"><h3>${esc(metric.label)} サマリー</h3><div class="table-scroll"><table><thead><tr><th>物件</th><th>開始値</th><th>最新値</th><th>期間変化</th><th>開示時点</th></tr></thead><tbody>${rows}</tbody></table></div></section><p class="privacy-note">比較値は各物件のEvidence付き時系列を使用します。平均は欠損値を除外して算出し、未開示値の補間は行いません。</p>`;
+  content.querySelectorAll("[data-comparison-metric]").forEach(button=>button.onclick=()=>{comparisonMetric=button.dataset.comparisonMetric;embedded?renderWorkspaceAnalysis():renderComparisonAnalysis()});
+  content.querySelectorAll("[data-remove-comparison]").forEach(button=>button.onclick=()=>toggleComparison(button.dataset.removeComparison));
+  const fullscreen=content.querySelector("#openFullscreenAnalysis");if(fullscreen)fullscreen.onclick=openComparisonAnalysis;
+  requestAnimationFrame(()=>drawComparisonChart(selectedProperties,comparisonMetric,canvasId));
 }
 
 function openComparisonAnalysis(){
   if(comparisonIds.size<2)return;
   renderComparisonAnalysis();
   document.querySelector("#comparisonDialog").showModal();
+}
+
+function renderWorkspaceAnalysis(){
+  renderComparisonAnalysis({contentId:"workspaceAnalysis",canvasId:"workspaceComparisonChart",embedded:true});
 }
 
 function drawHistory(p,metricKey){
@@ -297,20 +328,79 @@ function drawHistory(p,metricKey){
   document.querySelector("#historySummary").innerHTML=`<div class="history-summary"><div><span>最新値</span><b>${latest?metric.format(latest[metricKey]):"—"}</b></div><div><span>前期差</span><b class="${delta>0?"up":delta<0?"down":""}">${delta==null?"—":`${delta>0?"+":""}${metricKey==="noi"||metricKey==="appraisal"?`${delta.toLocaleString("ja-JP",{maximumFractionDigits:1})}百万円`:`${delta.toFixed(1)}pt`}`}</b></div><div><span>データ期間</span><b>${available.length}期</b></div></div>`;
 }
 
+function currentFilters(){
+  return{
+    query:document.querySelector("#search").value,reit:reitFilter.value,type:typeFilter.value,region:region.value,
+    capMin:document.querySelector("#capMin").value,capMax:document.querySelector("#capMax").value,
+    occupancyMin:document.querySelector("#occupancyMin").value,occupancyMax:document.querySelector("#occupancyMax").value,
+    priceMin:document.querySelector("#priceMin").value,priceMax:document.querySelector("#priceMax").value,
+    areaMin:document.querySelector("#areaMin").value,areaMax:document.querySelector("#areaMax").value,
+    sort:document.querySelector("#sort").value
+  };
+}
+
+function renderPropertyTable(){
+  const content=document.querySelector("#propertyTable");
+  if(!visible.length){content.innerHTML='<div class="analysis-empty"><div><b>条件に一致する物件がありません</b><span>検索条件を変更してください。</span></div></div>';return}
+  const rows=visible.map(property=>`<tr class="${comparisonIds.has(property.id)?"selected-row":""}"><td><input class="property-checkbox" type="checkbox" data-table-compare="${esc(property.id)}" aria-label="${esc(property.name)}を比較対象にする"${comparisonIds.has(property.id)?" checked":""}></td><td><button class="property-name-button" type="button" data-table-property="${esc(property.id)}"><b>${esc(property.name)}</b><small>${esc(property.address)}</small></button></td><td>${esc(property.reit)}</td><td>${esc(property.type)}</td><td>${yen(property.price)}</td><td>${yen(property.appraisal)}</td><td>${pct(property.cap)}</td><td>${pct(property.occupancy)}</td><td>${area(property.leasable_area)}</td><td>${yen(property.noi)}</td></tr>`).join("");
+  content.innerHTML=`<div class="table-note"><span>${visible.length.toLocaleString("ja-JP")}物件。チェックすると比較対象へ追加します。</span><span>未開示値は「—」表示</span></div><div class="property-table-wrap"><table class="property-table"><thead><tr><th>比較</th><th>物件名／住所</th><th>投資法人</th><th>用途</th><th>取得価格</th><th>鑑定評価額</th><th>鑑定CR</th><th>稼働率</th><th>賃貸可能面積</th><th>NOI</th></tr></thead><tbody>${rows}</tbody></table></div>`;
+  content.querySelectorAll("[data-table-compare]").forEach(checkbox=>checkbox.onchange=()=>toggleComparison(checkbox.dataset.tableCompare));
+  content.querySelectorAll("[data-table-property]").forEach(button=>button.onclick=()=>{setWorkspaceView("map");selectProperty(properties.find(property=>property.id===button.dataset.tableProperty))});
+}
+
+function setWorkspaceView(view,{persist=true}={}){
+  workspaceView=["map","table","analysis"].includes(view)?view:"map";
+  document.querySelectorAll(".view-tab").forEach(button=>{const active=button.dataset.view===workspaceView;button.classList.toggle("active",active);button.setAttribute("aria-selected",String(active))});
+  document.querySelectorAll(".workspace-view").forEach(panel=>{const active=panel.id===`${workspaceView}View`;panel.hidden=!active;panel.classList.toggle("active",active)});
+  if(persist)try{localStorage.setItem(workspaceViewStorageKey,workspaceView)}catch{}
+  if(workspaceView==="map")requestAnimationFrame(()=>map.invalidateSize());
+  if(workspaceView==="table")renderPropertyTable();
+  if(workspaceView==="analysis")renderWorkspaceAnalysis();
+}
+
+function downloadCsv(items,filename){
+  if(!items.length)return;
+  const keys=["id","reit_code","reit","name","type","region","address","lat","lng","price","book_value","appraisal","cap","discount_rate","terminal_cap_rate","occupancy","noi","leasable_area","leased_area","tenants"];
+  const csv=PIPWorkspace.toCsv(items,keys),url=URL.createObjectURL(new Blob(["\ufeff"+csv],{type:"text/csv"}));
+  const anchor=document.createElement("a");anchor.href=url;anchor.download=filename;anchor.click();URL.revokeObjectURL(url);
+}
+
+function clearComparison({closeDialog=false}={}){
+  comparisonIds.clear();persistComparison();updateComparisonButton();render();
+  if(selected)selectProperty(selected);
+  if(closeDialog)document.querySelector("#comparisonDialog").close();
+  if(workspaceView==="analysis")renderWorkspaceAnalysis();
+}
+
+function resetFilters(){
+  document.querySelector("#search").value="";reitFilter.value="";typeFilter.value="";region.value="";
+  numericFilterIds.forEach(id=>document.querySelector(`#${id}`).value="");
+  document.querySelector("#sort").value="name-asc";render();
+}
+
 function render(){
-  const q=document.querySelector("#search").value.toLowerCase(),reit=reitFilter.value,type=typeFilter.value,r=region.value;
-  visible=properties.filter(p=>(!reit||p.reit===reit)&&(!type||p.type===type)&&(!r||p.region===r)&&(`${p.name} ${p.address} ${p.reit}`.toLowerCase().includes(q)));
+  visible=PIPWorkspace.filterAndSort(properties,currentFilters());
   document.querySelector("#count").textContent=visible.length;
   document.querySelector("#list").innerHTML=visible.map(p=>`<div class="item${selected?.id===p.id?" active":""}" data-id="${esc(p.id)}"><b>${esc(p.name)}</b><small>${esc(p.address)}</small><br><span class="pill">${esc(p.region||p.type)}・CR ${pct(p.cap)}</span><button class="compare-toggle${comparisonIds.has(p.id)?" selected":""}" data-compare-id="${esc(p.id)}" aria-pressed="${comparisonIds.has(p.id)}">${comparisonIds.has(p.id)?"✓ 比較":"＋ 比較"}</button></div>`).join("");
   markers.clearLayers();visible.filter(p=>p.lat!=null&&p.lng!=null).forEach(p=>L.marker([p.lat,p.lng]).addTo(markers).bindTooltip(esc(p.name)).on("click",()=>selectProperty(p)));
   document.querySelectorAll(".item").forEach(el=>el.onclick=()=>selectProperty(properties.find(p=>p.id===el.dataset.id)));
   document.querySelectorAll("[data-compare-id]").forEach(button=>button.onclick=event=>{event.stopPropagation();toggleComparison(button.dataset.compareId)});
+  if(workspaceView==="table")renderPropertyTable();
+  if(workspaceView==="analysis")renderWorkspaceAnalysis();
+  updateComparisonButton();
 }
 document.querySelector("#search").oninput=render;reitFilter.onchange=render;typeFilter.onchange=render;region.onchange=render;
+numericFilterIds.forEach(id=>document.querySelector(`#${id}`).oninput=render);
+document.querySelector("#sort").onchange=render;
+document.querySelector("#resetFilters").onclick=resetFilters;
+document.querySelectorAll(".view-tab").forEach(button=>button.onclick=()=>setWorkspaceView(button.dataset.view));
 document.querySelector("#comparisonButton").onclick=openComparisonAnalysis;
-document.querySelector("#clearComparison").onclick=()=>{comparisonIds.clear();updateComparisonButton();render();if(selected)selectProperty(selected);document.querySelector("#comparisonDialog").close()};
-document.querySelector("#export").onclick=()=>{if(!visible.length)return;const keys=["id","reit_code","reit","name","type","region","address","lat","lng","price","book_value","appraisal","cap","discount_rate","terminal_cap_rate","occupancy","noi","leasable_area","leased_area","tenants"];const csv=[keys.join(","),...visible.map(p=>keys.map(k=>`"${String(p[k]??"").replaceAll('"','""')}"`).join(","))].join("\n");const a=document.createElement("a");a.href=URL.createObjectURL(new Blob(["\ufeff"+csv],{type:"text/csv"}));a.download="jreit-properties.csv";a.click();URL.revokeObjectURL(a.href)};
-window.addEventListener("resize",()=>{if(selected){const metric=document.querySelector("#historyMetric");if(metric)drawHistory(selected,metric.value)}if(document.querySelector("#comparisonDialog").open)drawComparisonChart(comparedProperties(),comparisonMetric)});
+document.querySelector("#clearComparison").onclick=()=>clearComparison({closeDialog:true});
+document.querySelector("#clearSelection").onclick=()=>clearComparison();
+document.querySelector("#openSelectedAnalysis").onclick=()=>setWorkspaceView("analysis");
+document.querySelector("#export").onclick=()=>downloadCsv(visible,"jreit-visible-properties.csv");
+document.querySelector("#exportSelected").onclick=()=>downloadCsv(comparedProperties(),"jreit-selected-properties.csv");
+window.addEventListener("resize",()=>{if(selected){const metric=document.querySelector("#historyMetric");if(metric)drawHistory(selected,metric.value)}if(document.querySelector("#comparisonDialog").open)drawComparisonChart(comparedProperties(),comparisonMetric);if(workspaceView==="analysis")drawComparisonChart(comparedProperties(),comparisonMetric,"workspaceComparisonChart")});
 loadData().catch(err=>{document.querySelector("#dataset").textContent="読込エラー";document.querySelector("#detail").innerHTML=`<p class="error">データを読み込めませんでした。${esc(err.message)}</p>`});
 loadImportStatus();
 loadQualityStatus();
