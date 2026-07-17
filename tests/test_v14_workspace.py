@@ -41,7 +41,7 @@ console.log(JSON.stringify({
         html = (ROOT / "index.html").read_text(encoding="utf-8")
         javascript = (ROOT / "app.js").read_text(encoding="utf-8")
         css = (ROOT / "workspace.css").read_text(encoding="utf-8")
-        self.assertIn("J-REIT Intelligence v0.14", html)
+        self.assertIn("J-REIT Intelligence v0.15", html)
         for view in ("map", "table", "analysis"):
             self.assertIn(f'data-view="{view}"', html)
         for filter_id in (
