@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
-  <title>J-REIT Intelligence v0.14</title>
+  <title>J-REIT Intelligence v0.15</title>
   <meta name="description" content="J-REIT物件の地図、時系列分析、類似物件比較を行うProperty Intelligence Platformの試作モジュール">
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
   <link rel="stylesheet" href="styles.css">
@@ -11,9 +11,10 @@
   <link rel="stylesheet" href="pdf-events.css">
   <link rel="stylesheet" href="comparison-analysis.css">
   <link rel="stylesheet" href="workspace.css">
+  <link rel="stylesheet" href="map-analysis.css">
 </head>
 <body>
-  <header><div><h1>J-REIT Intelligence</h1><p>Property Intelligence Platform — J-REIT Module v0.14</p></div><div class="header-actions"><span id="engineStatus" class="engine-status" hidden></span><button id="changeButton" class="change-button" hidden>差分確認</button><button id="qualityButton" class="quality-button" hidden>品質確認</button><button id="pdfStatus" class="pdf-button" hidden>PDF開示</button><button id="comparisonButton" class="comparison-button" disabled>比較分析 0件</button><span id="dataset" class="dataset">読込中</span><button id="export">表示CSV</button></div></header>
+  <header><div><h1>J-REIT Intelligence</h1><p>Property Intelligence Platform — J-REIT Module v0.15</p></div><div class="header-actions"><span id="engineStatus" class="engine-status" hidden></span><button id="changeButton" class="change-button" hidden>差分確認</button><button id="qualityButton" class="quality-button" hidden>品質確認</button><button id="pdfStatus" class="pdf-button" hidden>PDF開示</button><button id="comparisonButton" class="comparison-button" disabled>比較分析 0件</button><span id="dataset" class="dataset">読込中</span><button id="export">表示CSV</button></div></header>
   <main>
     <aside>
       <input id="search" type="search" placeholder="物件名・住所を検索">
@@ -57,6 +58,13 @@
         <span id="workspaceSummary">0物件を表示</span>
       </nav>
       <div id="mapView" class="workspace-view map-view active">
+        <div class="map-action-bar">
+          <button id="filterMapBounds" type="button">この地図範囲で検索</button>
+          <button id="clearMapBounds" class="secondary-button" type="button" hidden>範囲検索を解除</button>
+          <button id="selectVisible" class="secondary-button" type="button">表示中から比較選択</button>
+          <span id="mapActionStatus">拡大するとCAP数値を表示</span>
+        </div>
+        <div id="capLegend" class="cap-legend" aria-label="鑑定CRの色分け凡例"></div>
         <section id="map"></section>
         <section id="detail" class="detail"><p class="empty">地図または一覧から物件を選択してください。</p></section>
       </div>
@@ -90,6 +98,7 @@
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <script src="analysis-math.js" defer></script>
   <script src="workspace-utils.js" defer></script>
+  <script src="map-analysis.js" defer></script>
   <script src="app.js" defer></script>
 </body>
 </html>

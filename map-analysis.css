@@ -1,0 +1,31 @@
+.map-view{position:relative}
+.map-view #map{grid-column:1}
+.map-view .detail{grid-column:2}
+.map-action-bar{position:absolute;z-index:700;top:10px;left:10px;right:450px;display:flex;align-items:center;gap:6px;pointer-events:none}
+.map-action-bar>*{pointer-events:auto}
+.map-action-bar button{box-shadow:0 2px 10px #0f172a24;padding:8px 10px;font-size:10px}
+.map-action-bar #filterMapBounds.active{background:#166534}
+.map-action-bar span{margin-left:auto;background:#ffffffea;border:1px solid #dbe3ee;border-radius:999px;padding:6px 9px;color:#475569;font-size:9px;box-shadow:0 2px 10px #0f172a14}
+.cap-legend{position:absolute;z-index:700;left:10px;bottom:12px;background:#ffffffed;border:1px solid #dbe3ee;border-radius:10px;padding:9px 10px;box-shadow:0 4px 18px #0f172a24;display:grid;gap:5px}
+.cap-legend b{font-size:10px;margin-bottom:2px}
+.cap-legend span{display:flex;align-items:center;gap:6px;font-size:9px;color:#475569}
+.cap-legend i{display:inline-block;width:10px;height:10px;border-radius:50%;border:1px solid #ffffff;box-shadow:0 0 0 1px #cbd5e1}
+.cap-marker-shell{background:transparent;border:0}
+.cap-marker{position:relative;display:flex;align-items:center;justify-content:center;min-width:37px;height:25px;padding:0 6px;background:var(--cap-color);border:2px solid #fff;border-radius:7px;color:#fff;font-size:10px;font-weight:900;line-height:1;box-shadow:0 2px 7px #0f172a66;white-space:nowrap;transform:translate(-1px,-1px)}
+.cap-marker::after{content:"";position:absolute;bottom:-5px;width:7px;height:7px;background:var(--cap-color);border-right:2px solid #fff;border-bottom:2px solid #fff;transform:rotate(45deg)}
+.cap-marker.unknown{background:repeating-linear-gradient(135deg,#94a3b8 0 3px,#cbd5e1 3px 6px)}
+.cap-marker.unknown::after{background:#94a3b8}
+.cap-marker.compact{min-width:15px;width:15px;height:15px;padding:0;border-radius:50%;font-size:0;transform:translate(10px,5px)}
+.cap-marker.compact::after{display:none}
+.cap-marker.selected{box-shadow:0 0 0 3px #facc15,0 3px 9px #0f172a77}
+.range-empty-note{font-size:10px;color:#92400e}
+@media(max-width:1100px){
+  .map-action-bar{right:10px}
+  .map-view #map,.map-view .detail{grid-column:1}
+}
+@media(max-width:700px){
+  .map-action-bar{top:7px;left:7px;right:7px;flex-wrap:wrap}
+  .map-action-bar span{display:none}
+  .map-action-bar button{padding:7px 8px}
+  .cap-legend{display:none}
+}
