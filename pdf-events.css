@@ -8,6 +8,45 @@
   padding: 20px 22px 24px;
 }
 
+.pdf-review-summary {
+  margin-top: 0;
+  padding: 14px;
+  border: 1px solid #c4b5fd;
+  border-radius: 12px;
+  background: #faf9ff;
+}
+
+.pdf-review-cards {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8px;
+}
+
+.pdf-review-cards > div {
+  padding: 10px;
+  border: 1px solid #ddd6fe;
+  border-radius: 9px;
+  background: #fff;
+}
+
+.pdf-review-cards span {
+  display: block;
+  color: #64748b;
+  font-size: 9px;
+}
+
+.pdf-review-cards b {
+  display: block;
+  margin-top: 3px;
+  font-size: 17px;
+}
+
+.pdf-document-section + .pdf-document-section {
+  margin-top: 22px;
+  padding-top: 22px;
+  border-top: 2px solid #e2e8f0;
+}
+
 .pdf-document {
   display: flex;
   align-items: center;
@@ -167,7 +206,8 @@
   }
 
   .pdf-event-list,
-  .pdf-metric-cards {
+  .pdf-metric-cards,
+  .pdf-review-cards {
     grid-template-columns: 1fr;
   }
 }

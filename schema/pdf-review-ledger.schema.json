@@ -1,0 +1,27 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.invalid/pip/pdf-review-ledger.schema.json",
+  "title": "PIP Local PDF Evidence Review Ledger v1.0",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "updated_at", "reviews"],
+  "properties": {
+    "schema_version": {"const": "1.0"},
+    "updated_at": {"type": ["string", "null"], "format": "date-time"},
+    "reviews": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["evidence_id", "status", "reviewed_by", "reviewed_at", "note"],
+        "properties": {
+          "evidence_id": {"type": "string", "pattern": "^ev-[a-f0-9]{32}$"},
+          "status": {"enum": ["approved", "rejected", "not_required"]},
+          "reviewed_by": {"type": "string", "minLength": 1},
+          "reviewed_at": {"type": "string", "format": "date-time"},
+          "note": {"type": ["string", "null"]}
+        }
+      }
+    }
+  }
+}

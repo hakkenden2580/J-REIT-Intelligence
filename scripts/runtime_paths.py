@@ -19,10 +19,11 @@ RAW_DIR = PRIVATE_DATA_DIR / "raw"
 NORMALIZED_DIR = PRIVATE_DATA_DIR / "normalized"
 CACHE_DIR = PRIVATE_DATA_DIR / "cache"
 REPORTS_DIR = PRIVATE_DATA_DIR / "reports"
+REVIEWS_DIR = PRIVATE_DATA_DIR / "reviews"
 QUARANTINE_DIR = PRIVATE_DATA_DIR / "quarantine"
 SNAPSHOTS_DIR = PRIVATE_DATA_DIR / "snapshots"
 
 
 def ensure_private_dirs() -> None:
-    for path in (RAW_DIR, NORMALIZED_DIR, CACHE_DIR, REPORTS_DIR, QUARANTINE_DIR, SNAPSHOTS_DIR):
+    for path in (RAW_DIR, NORMALIZED_DIR, CACHE_DIR, REPORTS_DIR, REVIEWS_DIR, QUARANTINE_DIR, SNAPSHOTS_DIR):
         path.mkdir(parents=True, exist_ok=True)

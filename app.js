@@ -1,4 +1,4 @@
-let properties=[];let visible=[];let selected=null;let pdfSupplement=null;
+let properties=[];let visible=[];let selected=null;let pdfCatalog=null;
 const map=L.map("map").setView([35.55,139.55],7);
 L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",{attribution:"&copy; OpenStreetMap contributors"}).addTo(map);
 const markers=L.layerGroup().addTo(map);
@@ -22,11 +22,14 @@ const eventLabels={acquisition_planned:"取得予定",additional_acquisition_pla
 
 const normalizedPropertyName=value=>String(value||"").normalize("NFKC").replace(/[\s　]/g,"").replace(/[（(]追加取得[）)]/g,"");
 const eventPage=event=>Object.values(event.evidence||{}).map(item=>item.locator?.page).find(Boolean);
-const pdfEventsFor=p=>{const name=normalizedPropertyName(p.name);return (pdfSupplement?.property_events||[]).filter(event=>{const eventName=normalizedPropertyName(event.property_name);return name===eventName||name.includes(eventName)||eventName.includes(name)})};
+const pdfDocuments=()=>pdfCatalog?.supplements||[];
+const allPdfEvents=()=>pdfDocuments().flatMap(supplement=>(supplement.property_events||[]).map(event=>({...event,_source:supplement.meta?.source||{}})));
+const pdfEventsFor=p=>{const name=normalizedPropertyName(p.name);return allPdfEvents().filter(event=>{const eventName=normalizedPropertyName(event.property_name);return name===eventName||name.includes(eventName)||eventName.includes(name)})};
 const pdfValue=(metricCode,value)=>metricCode.includes("percent")?pct(value):yen(value);
+const reviewLabel=status=>({approved:"確認済み",rejected:"却下",not_required:"確認不要",pending:"未確認"}[status]||"未確認");
 
 function pdfEvidenceList(evidence){
-  return Object.values(evidence||{}).map(item=>{const page=item.locator?.page?`p.${item.locator.page}`:"ページ不明";const confidence=item.extraction?.confidence==null?"":`・信頼度 ${(Number(item.extraction.confidence)*100).toFixed(0)}%`;const review=item.review?.status==="verified"?"確認済み":"未確認";return`<li><b>${esc(pdfMetricLabels[item.metric_code]||evidenceLabels[item.metric_code]||item.metric_code)}</b><br><code>${esc(page)}</code>${esc(confidence)}・${esc(review)}</li>`}).join("");
+  return Object.values(evidence||{}).map(item=>{const page=item.locator?.page?`p.${item.locator.page}`:"ページ不明";const confidence=item.extraction?.confidence==null?"":`・信頼度 ${(Number(item.extraction.confidence)*100).toFixed(0)}%`;const review=reviewLabel(item.review?.status);return`<li><b>${esc(pdfMetricLabels[item.metric_code]||evidenceLabels[item.metric_code]||item.metric_code)}</b><br><code>${esc(page)}</code>${esc(confidence)}・${esc(review)}</li>`}).join("");
 }
 
 function pdfEventCard(event,{compact=false}={}){
@@ -36,24 +39,25 @@ function pdfEventCard(event,{compact=false}={}){
 
 function pdfEventPanel(p){
   const events=pdfEventsFor(p);if(!events.length)return"";
-  const source=pdfSupplement?.meta?.source||{},url=safeUrl(source.url),retrieved=source.retrieved_at?new Date(source.retrieved_at).toLocaleString("ja-JP"):"未記録";
-  return`<section class="analysis pdf-events"><div class="analysis-heading"><div><span class="eyebrow">DISCLOSURE EVENT</span><h3>取得・売却イベント</h3></div></div>${events.map(event=>pdfEventCard(event)).join("")}<p class="pdf-source-line">${esc(source.document||"NBF決算説明会資料")}・取得日時 ${esc(retrieved)}${url?`・<a href="${esc(url)}" target="_blank" rel="noopener">公式IR</a>`:""}</p><p class="method">PDF抽出値は未確認です。投資・融資判断前に原資料と照合してください。</p></section>`;
+  const sources=[...new Map(events.map(event=>[`${event._source.document||""}|${event._source.url||""}`,event._source])).values()];
+  const sourceLines=sources.map(source=>{const url=safeUrl(source.url),retrieved=source.retrieved_at?new Date(source.retrieved_at).toLocaleString("ja-JP"):"未記録";return`${esc(source.document||"決算説明会資料")}・取得日時 ${esc(retrieved)}${url?`・<a href="${esc(url)}" target="_blank" rel="noopener">公式IR</a>`:""}`}).join("<br>");
+  return`<section class="analysis pdf-events"><div class="analysis-heading"><div><span class="eyebrow">DISCLOSURE EVENT</span><h3>取得・売却イベント</h3></div></div>${events.map(event=>pdfEventCard(event)).join("")}<p class="pdf-source-line">${sourceLines}</p><p class="method">PDF抽出値は確認状態を表示しています。投資・融資判断前に原資料と照合してください。</p></section>`;
 }
 
 function renderPdfDashboard(){
   const button=document.querySelector("#pdfStatus"),dialog=document.querySelector("#pdfDialog"),content=document.querySelector("#pdfContent");
-  if(!pdfSupplement){button.hidden=true;return}
-  const metrics=(pdfSupplement.portfolio_metrics||[]).map(item=>`<div><span>${esc(pdfMetricLabels[item.metric_code]||item.metric_code)}</span><b>${pdfValue(item.metric_code,item.value)}</b><small>${item.evidence?.locator?.page?`PDF p.${item.evidence.locator.page}`:""}</small></div>`).join("");
-  const events=(pdfSupplement.property_events||[]).map(event=>pdfEventCard(event,{compact:true})).join("");
-  const source=pdfSupplement.meta?.source||{},url=safeUrl(source.url),retrieved=source.retrieved_at?new Date(source.retrieved_at).toLocaleString("ja-JP"):"未記録";
-  button.textContent=`PDF開示 ${pdfSupplement.property_events?.length||0}件`;button.hidden=false;
-  content.innerHTML=`<div class="pdf-document"><div><span>資料</span><b>${esc(source.document||"NBF決算説明会資料")}</b><small>${esc(pdfSupplement.meta?.period||"")}・取得日時 ${esc(retrieved)}</small></div>${url?`<a href="${esc(url)}" target="_blank" rel="noopener">公式IRライブラリ</a>`:""}</div><section class="quality-section"><h3>ポートフォリオ指標</h3><div class="pdf-metric-cards">${metrics}</div></section><section class="quality-section"><h3>取得・売却イベント</h3><div class="pdf-event-list">${events}</div></section><p class="privacy-note">原本PDF、SHA-256、ダウンロードURL、正規化済み実データはブラウザへ公開していません。この表示はMac内のprivate-dataをlocalhost専用APIでサニタイズしたものです。</p>`;
+  const documents=pdfDocuments();if(!documents.length){button.hidden=true;return}
+  const review=pdfCatalog.meta?.review_summary||{},eventCount=Number(pdfCatalog.meta?.event_count||allPdfEvents().length);
+  const reviewCards=[["Evidence",review.total||0],["確認済み",review.approved||0],["未確認",review.pending||0],["却下",review.rejected||0]].map(([label,value])=>`<div><span>${esc(label)}</span><b>${Number(value).toLocaleString("ja-JP")}</b></div>`).join("");
+  const documentSections=documents.map(supplement=>{const metrics=(supplement.portfolio_metrics||[]).map(item=>`<div><span>${esc(pdfMetricLabels[item.metric_code]||item.metric_code)}</span><b>${pdfValue(item.metric_code,item.value)}</b><small>${item.evidence?.locator?.page?`PDF p.${item.evidence.locator.page}`:""}・${esc(reviewLabel(item.evidence?.review?.status))}</small></div>`).join("");const events=(supplement.property_events||[]).map(event=>pdfEventCard(event,{compact:true})).join("");const source=supplement.meta?.source||{},url=safeUrl(source.url),retrieved=source.retrieved_at?new Date(source.retrieved_at).toLocaleString("ja-JP"):"未記録";return`<section class="pdf-document-section"><div class="pdf-document"><div><span>資料</span><b>${esc(source.document||"決算説明会資料")}</b><small>${esc(supplement.meta?.period||"")}・取得日時 ${esc(retrieved)}</small></div>${url?`<a href="${esc(url)}" target="_blank" rel="noopener">公式IRライブラリ</a>`:""}</div><section class="quality-section"><h3>ポートフォリオ指標</h3><div class="pdf-metric-cards">${metrics}</div></section><section class="quality-section"><h3>取得・売却イベント</h3><div class="pdf-event-list">${events}</div></section></section>`}).join("");
+  button.textContent=`PDF開示 ${eventCount}件`;button.hidden=false;
+  content.innerHTML=`<section class="quality-section pdf-review-summary"><h3>人手確認状況</h3><div class="pdf-review-cards">${reviewCards}</div><p class="method">確認操作はMacのターミナルで行い、履歴はprivate-data/reviewsだけに保存します。</p></section>${documentSections}<p class="privacy-note">原本PDF、SHA-256、ダウンロードURL、正規化済み実データ、確認者名、確認メモはブラウザへ公開していません。この表示はMac内のprivate-dataをlocalhost専用APIでサニタイズしたものです。</p>`;
   button.onclick=()=>dialog.showModal();
 }
 
 async function loadPdfSupplement(){
-  try{const res=await fetch("runtime-data/nbf-pdf.json",{cache:"no-store"});if(!res.ok)return;pdfSupplement=await res.json();renderPdfDashboard()}
-  catch{pdfSupplement=null;renderPdfDashboard()}
+  try{let res=await fetch("runtime-data/pdf-supplements.json",{cache:"no-store"});if(res.ok){pdfCatalog=await res.json()}else{res=await fetch("runtime-data/nbf-pdf.json",{cache:"no-store"});if(!res.ok)return;const legacy=await res.json();pdfCatalog={meta:{supplement_count:1,event_count:legacy.property_events?.length||0,review_summary:legacy.review_summary||{}},supplements:[legacy]}}renderPdfDashboard()}
+  catch{pdfCatalog=null;renderPdfDashboard()}
 }
 
 async function loadImportStatus(){
