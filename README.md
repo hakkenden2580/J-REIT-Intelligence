@@ -1,6 +1,6 @@
-# J-REIT Intelligence v0.12
+# J-REIT Intelligence v0.13
 
-Property Intelligence Platform（PIP）の最初のモジュールです。NBF・JRE・GLPを横断し、地図、検索、物件詳細、時系列グラフ、類似物件比較、出典セル表示、CSV出力を備えます。v0.6でData Engine契約、v0.7でData Quality Gate、v0.8でデータ差分検出、v0.9でPDF共通基盤、v0.10でNBF決算説明会資料の法人別PDF Adapter、v0.11でPDF開示イベントのローカル表示、v0.12で複数PDFの共通カタログと人手確認台帳を追加しました。
+Property Intelligence Platform（PIP）の最初のモジュールです。NBF・JRE・GLPを横断し、地図、検索、物件詳細、時系列グラフ、類似物件比較、出典セル表示、CSV出力を備えます。v0.6でData Engine契約、v0.7でData Quality Gate、v0.8でデータ差分検出、v0.9でPDF共通基盤、v0.10でNBF決算説明会資料の法人別PDF Adapter、v0.11でPDF開示イベントのローカル表示、v0.12で複数PDFの共通カタログと人手確認台帳、v0.13で複数物件の時系列比較分析を追加しました。
 
 ## データ方針
 
@@ -226,6 +226,19 @@ python3 scripts/review_pdf_evidence.py clear ev-0123456789ab
 確認台帳は`private-data/reviews/pdf-evidence-reviews.json`にだけ保存します。GitHubへは登録されず、localhost画面にも確認者名・確認メモを返しません。画面へ出すのは資料別・全体の件数と確認状態だけです。原本確認を伴わない一括承認は禁止し、資料や抽出位置が変わると別のEvidence IDになるため再確認が必要です。
 
 共通APIの`/runtime-data/pdf-supplements.json`は、`private-data/normalized/`内の対応済みPDF補足データを複数資料・複数投資法人にわたって読み込みます。資料固有のParserは引き続き別Adapterとし、共通カタログは表示・確認状態の統合だけを担当します。
+
+## 複数物件比較分析 v0.13
+
+一覧または物件詳細の「比較」ボタンから最大8物件を選び、画面上部の「比較分析」を開きます。現在のEvidence付き時系列で比較できる指標は次の4つです。
+
+- 直接還元利回り（CR）
+- NOI
+- 稼働率
+- 鑑定評価額
+
+異なる決算期を日付で同じ時間軸へ並べ、物件別の推移と各時点の平均値を表示します。欠損値は平均から除外し、補間や推定は行いません。比較表には開始値、最新値、期間変化、開示時点数を表示します。
+
+完成版の分析画面では、地図・表・チャートの表示切替、選択物件の保存、検索条件の保存、CAP帯による地図表現、半径検索を段階的に追加します。専有坪単価と貸室賃料収入単価は、投資法人ごとの開示定義と算式を統一し、各値にEvidenceを付与できた後に有効化します。賃貸収入や面積から根拠の異なる値を画面側で推定することはしません。
 
 ## ローカル起動
 
