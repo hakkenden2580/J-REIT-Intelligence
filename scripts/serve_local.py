@@ -11,7 +11,9 @@ import posixpath
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import unquote, urlsplit
 
-from runtime_paths import NORMALIZED_DIR, REPORTS_DIR, ROOT, ensure_private_dirs
+from data_engine.pdf_reviews import apply_review_ledger, load_review_ledger, review_summary
+from data_engine.pdf_supplements import load_pdf_supplements
+from runtime_paths import NORMALIZED_DIR, REPORTS_DIR, REVIEWS_DIR, ROOT, ensure_private_dirs
 
 BLOCKED_PREFIXES = ("/private-data/", "/sources/raw/", "/.git/")
 BLOCKED_DIRECTORIES = {"/private-data", "/sources/raw", "/.git"}
@@ -189,6 +191,23 @@ def sanitized_pdf_supplement(record: dict) -> dict:
         },
         "portfolio_metrics": portfolio_metrics,
         "property_events": property_events,
+        "review_summary": review_summary(record),
+    }
+
+
+def sanitized_pdf_catalog(records: list[dict], ledger: dict) -> dict:
+    supplements = [sanitized_pdf_supplement(apply_review_ledger(record, ledger)) for record in records]
+    aggregate = {"total": 0, "pending": 0, "approved": 0, "rejected": 0, "not_required": 0}
+    for supplement in supplements:
+        for key in aggregate:
+            aggregate[key] += int(supplement.get("review_summary", {}).get(key, 0))
+    return {
+        "meta": {
+            "supplement_count": len(supplements),
+            "event_count": sum(len(item.get("property_events", [])) for item in supplements),
+            "review_summary": aggregate,
+        },
+        "supplements": supplements,
     }
 
 
@@ -212,14 +231,27 @@ class LocalHandler(SimpleHTTPRequestHandler):
 
     def send_head(self):
         request_path = normalized_request_path(self.path)
+        if request_path == "/runtime-data/pdf-supplements.json":
+            try:
+                records = load_pdf_supplements(NORMALIZED_DIR)
+                if not records:
+                    self.send_error(404, "PDF supplements not found")
+                    return None
+                ledger = load_review_ledger(REVIEWS_DIR / "pdf-evidence-reviews.json")
+                return self.json_response(sanitized_pdf_catalog(records, ledger))
+            except (OSError, json.JSONDecodeError, TypeError, ValueError):
+                self.send_error(500, "PDF supplements are invalid")
+                return None
         if request_path == "/runtime-data/nbf-pdf.json":
             target = NORMALIZED_DIR / "nbf-49-earnings-presentation.json"
             if not target.is_file():
                 self.send_error(404, "NBF PDF supplement not found")
                 return None
             try:
-                return self.json_response(sanitized_pdf_supplement(json.loads(target.read_text(encoding="utf-8"))))
-            except (OSError, json.JSONDecodeError, TypeError):
+                ledger = load_review_ledger(REVIEWS_DIR / "pdf-evidence-reviews.json")
+                record = apply_review_ledger(json.loads(target.read_text(encoding="utf-8")), ledger)
+                return self.json_response(sanitized_pdf_supplement(record))
+            except (OSError, json.JSONDecodeError, TypeError, ValueError):
                 self.send_error(500, "NBF PDF supplement is invalid")
                 return None
         if request_path == "/runtime-data/change-status.json":
