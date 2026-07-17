@@ -128,11 +128,68 @@
     return segments;
   }
 
+  function rangeSegments(lowerValues, upperValues) {
+    const segments = [];
+    let current = [];
+    const length = Math.max(lowerValues?.length || 0, upperValues?.length || 0);
+    for (let index = 0; index < length; index += 1) {
+      const lower = Number(lowerValues?.[index]);
+      const upper = Number(upperValues?.[index]);
+      if (
+        lowerValues?.[index] == null ||
+        upperValues?.[index] == null ||
+        Number.isNaN(lower) ||
+        Number.isNaN(upper)
+      ) {
+        if (current.length) segments.push(current);
+        current = [];
+        continue;
+      }
+      current.push({index, lower: Math.min(lower, upper), upper: Math.max(lower, upper)});
+    }
+    if (current.length) segments.push(current);
+    return segments;
+  }
+
+  function drawRangeBand(context, lowerValues, upperValues, xAt, yAt, options = {}) {
+    const {
+      fill = "#dbeafe",
+      stroke = "#93c5fd",
+      opacity = 0.58,
+    } = options;
+    const segments = rangeSegments(lowerValues, upperValues);
+    context.save();
+    context.fillStyle = fill;
+    context.strokeStyle = stroke;
+    context.lineWidth = 1;
+    context.globalAlpha = opacity;
+    segments.forEach(segment => {
+      if (!segment.length) return;
+      context.beginPath();
+      segment.forEach((point, index) => {
+        const x = xAt(point.index);
+        const y = yAt(point.upper);
+        if (index === 0) context.moveTo(x, y);
+        else context.lineTo(x, y);
+      });
+      [...segment].reverse().forEach(point => {
+        context.lineTo(xAt(point.index), yAt(point.lower));
+      });
+      context.closePath();
+      context.fill();
+      context.stroke();
+    });
+    context.restore();
+    return segments;
+  }
+
   return {
     segmentSeries,
+    rangeSegments,
     stableChartWidth,
     stageSize,
     prepareCanvas,
     drawSegmentedSeries,
+    drawRangeBand,
   };
 }));

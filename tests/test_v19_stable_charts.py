@@ -61,7 +61,7 @@ console.log(JSON.stringify({
         css = (ROOT / "comparison-analysis.css").read_text(encoding="utf-8")
         detail_css = (ROOT / "chart-polish.css").read_text(encoding="utf-8")
 
-        self.assertIn("J-REIT Intelligence v0.20", html)
+        self.assertIn("J-REIT Intelligence v0.21", html)
         self.assertIn('src="chart-renderer.js"', html)
         self.assertIn("comparison-chart-overlay", javascript)
         self.assertIn("history-chart-overlay", javascript)

@@ -36,7 +36,7 @@ console.log(JSON.stringify({
         spatial_css = (ROOT / "spatial-analysis.css").read_text(encoding="utf-8")
         comparison_css = (ROOT / "comparison-analysis.css").read_text(encoding="utf-8")
 
-        self.assertIn("J-REIT Intelligence v0.20", html)
+        self.assertIn("J-REIT Intelligence v0.21", html)
         self.assertIn('id="radiusKm" type="range"', html)
         self.assertIn('max="50"', html)
         for control_id in ("toggleBoxSelection", "clearBoxSelection", "radiusValue"):

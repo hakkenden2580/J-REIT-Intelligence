@@ -394,6 +394,23 @@ function comparisonDelta(metricKey,value){
     :`${sign}${Number(value).toFixed(1)}pt`;
 }
 
+function latestDistributionSnapshot(distribution,timeline,totalProperties){
+  for(let index=timeline.length-1;index>=0;index--){
+    if(distribution.median[index]==null)continue;
+    const count=distribution.counts[index]||0;
+    return{
+      period:timeline[index]?.label||timeline[index]?.key||"—",
+      average:distribution.average[index],
+      median:distribution.median[index],
+      q1:distribution.q1[index],
+      q3:distribution.q3[index],
+      count,
+      coveragePercent:totalProperties?Math.round(count/totalProperties*100):0,
+    };
+  }
+  return null;
+}
+
 function bindStableChartResize(stage,render){
   stage._pipChartRender=render;
   if(typeof ResizeObserver==="undefined"||stage._pipResizeObserver)return;
@@ -425,6 +442,7 @@ function drawComparisonHover(canvas,overlay,index){
     ctx.beginPath();ctx.arc(x,model.yAt(value),radius,0,Math.PI*2);ctx.fill();ctx.stroke();
   };
   model.renderedSeries.forEach((series,seriesIndex)=>highlight(series[index],comparisonColor(seriesIndex),4));
+  highlight(model.median[index],"#172554",4.8);
   highlight(model.average[index],"#2457e6",5.5);
 }
 
@@ -453,10 +471,11 @@ function drawComparisonChart(selectedProperties,metricKey,canvasId="comparisonCh
   const resolvedMode=PIPAnalysis.resolveSeriesMode(comparisonSeriesMode,selectedProperties.length,individualSeriesLimit);
   const timeline=PIPAnalysis.buildComparisonTimeline(selectedProperties);
   const propertySeries=selectedProperties.map(property=>PIPAnalysis.buildComparisonSeries(property,metricKey,timeline));
-  const aggregate=PIPAnalysis.coverageAwareAverage(propertySeries);
-  const average=aggregate.average,sampleCounts=aggregate.counts,minimumSampleCount=aggregate.minimumCount;
+  const aggregate=PIPAnalysis.distributionSeries(propertySeries);
+  const average=aggregate.average,median=aggregate.median,q1=aggregate.q1,q3=aggregate.q3;
+  const sampleCounts=aggregate.counts,minimumSampleCount=aggregate.minimumCount;
   const renderedSeries=resolvedMode==="individual"?propertySeries:[];
-  const available=[...renderedSeries.flat(),...average].filter(value=>value!=null);
+  const available=[...renderedSeries.flat(),...q1,...q3,...average,...median].filter(value=>value!=null);
   const preferredHeight=window.innerWidth<700?300:canvasId==="workspaceComparisonChart"?470:430;
   const {width,height}=PIPChart.stageSize(stage,preferredHeight,window.innerWidth-24);
   const ctx=PIPChart.prepareCanvas(canvas,width,height,window.devicePixelRatio);
@@ -477,16 +496,24 @@ function drawComparisonChart(selectedProperties,metricKey,canvasId="comparisonCh
     const label=metricKey==="noi"||metricKey==="appraisal"?Math.round(value).toLocaleString("ja-JP"):value.toFixed(1);
     ctx.fillText(label,pad.left-9,y);
   }
+  if(selectedProperties.length>=3){
+    PIPChart.drawRangeBand(ctx,q1,q3,xAt,yAt,{
+      fill:"#dbeafe",stroke:"#93c5fd",opacity:.62,
+    });
+  }
   renderedSeries.forEach((series,index)=>PIPChart.drawSegmentedSeries(ctx,series,xAt,yAt,{
     color:comparisonColor(index),width:2,points:true,pointRadius:2.8,opacity:.76,
   }));
+  PIPChart.drawSegmentedSeries(ctx,median,xAt,yAt,{
+    color:"#172554",gapColor:"#172554",width:2.4,points:false,opacity:.9,
+  });
   PIPChart.drawSegmentedSeries(ctx,average,xAt,yAt,{
     color:"#2457e6",gapColor:"#2457e6",width:3.4,points:true,pointRadius:3.7,
   });
   const step=Math.max(1,Math.ceil(timeline.length/8));ctx.textAlign="right";ctx.textBaseline="top";ctx.fillStyle="#64748b";ctx.font="10px sans-serif";
   timeline.forEach((point,index)=>{if(index%step!==0&&index!==timeline.length-1)return;ctx.save();ctx.translate(xAt(index),height-pad.bottom+10);ctx.rotate(-Math.PI/4);ctx.fillText(point.label,0,0);ctx.restore()});
   ctx.save();ctx.translate(16,pad.top+plotH/2);ctx.rotate(-Math.PI/2);ctx.textAlign="center";ctx.textBaseline="top";ctx.fillStyle="#475569";ctx.font="11px sans-serif";ctx.fillText(metrics[metricKey].label,0,0);ctx.restore();
-  canvas._pipChartModel={selectedProperties,metricKey,timeline,propertySeries,renderedSeries,average,sampleCounts,minimumSampleCount,resolvedMode,pad,plotW,plotH,width,height,xAt,yAt};
+  canvas._pipChartModel={selectedProperties,metricKey,timeline,propertySeries,renderedSeries,average,median,q1,q3,sampleCounts,minimumSampleCount,resolvedMode,pad,plotW,plotH,width,height,xAt,yAt};
   bindComparisonInteraction(canvas,overlay);
   bindStableChartResize(stage,()=>drawComparisonChart(selectedProperties,metricKey,canvasId));
 }
@@ -495,6 +522,7 @@ function showComparisonTooltip(canvas,index,pointerX,pointerY){
   const model=canvas._pipChartModel,tooltip=canvas.parentElement.querySelector(".comparison-chart-tooltip");
   if(!model||!tooltip||index==null)return;
   const average=model.average[index],date=model.timeline[index]?.label||model.timeline[index]?.key;
+  const median=model.median[index],q1=model.q1[index],q3=model.q3[index];
   const sampleCount=model.sampleCounts[index]||0;
   const coveragePercent=model.selectedProperties.length
     ?Math.round(sampleCount/model.selectedProperties.length*100)
@@ -503,7 +531,7 @@ function showComparisonTooltip(canvas,index,pointerX,pointerY){
   const lines=model.resolvedMode==="individual"
     ?model.selectedProperties.map((property,propertyIndex)=>({name:property.name,value:model.propertySeries[propertyIndex][index],color:comparisonColor(propertyIndex)})).filter(item=>item.value!=null)
     :[];
-  tooltip.innerHTML=`<b>${esc(date)}</b><div class="tooltip-average"><i></i><span>${averageLabel}</span><strong>${comparisonValue(model.metricKey,average)}</strong><small>${sampleCount} / ${model.selectedProperties.length}物件（${coveragePercent}%）</small></div>${lines.map(item=>`<div><i style="background:${item.color}"></i><span>${esc(item.name)}</span><strong>${comparisonValue(model.metricKey,item.value)}</strong></div>`).join("")}`;
+  tooltip.innerHTML=`<b>${esc(date)}</b><div class="tooltip-average"><i></i><span>${averageLabel}</span><strong>${comparisonValue(model.metricKey,average)}</strong><small>${sampleCount} / ${model.selectedProperties.length}物件（${coveragePercent}%）</small></div><div class="tooltip-median"><i></i><span>中央値</span><strong>${comparisonValue(model.metricKey,median)}</strong></div><div class="tooltip-band"><i></i><span>中央50%（Q1–Q3）</span><strong>${q1==null||q3==null?"—":`${comparisonValue(model.metricKey,q1)} – ${comparisonValue(model.metricKey,q3)}`}</strong></div>${lines.map(item=>`<div><i style="background:${item.color}"></i><span>${esc(item.name)}</span><strong>${comparisonValue(model.metricKey,item.value)}</strong></div>`).join("")}`;
   tooltip.hidden=false;
   const stage=canvas.parentElement,maxLeft=Math.max(8,stage.clientWidth-tooltip.offsetWidth-8),maxTop=Math.max(8,stage.clientHeight-tooltip.offsetHeight-8);
   tooltip.style.left=`${Math.max(8,Math.min(maxLeft,pointerX+14))}px`;
@@ -520,10 +548,15 @@ function renderComparisonAnalysis({contentId="comparisonContent",canvasId="compa
   if(selectedProperties.length<2){content.innerHTML=`<div class="analysis-empty"><div><b>比較する物件を2件以上選択してください</b><span>地図・一覧・物件リストの「＋ 比較」から最大${comparisonLimit}件を選択できます。</span></div></div>`;return}
   const metric=metrics[comparisonMetric];
   const resolvedMode=PIPAnalysis.resolveSeriesMode(comparisonSeriesMode,selectedProperties.length,individualSeriesLimit);
+  const timeline=PIPAnalysis.buildComparisonTimeline(selectedProperties);
+  const propertySeries=selectedProperties.map(property=>PIPAnalysis.buildComparisonSeries(property,comparisonMetric,timeline));
+  const distribution=PIPAnalysis.distributionSeries(propertySeries);
+  const latestDistribution=latestDistributionSnapshot(distribution,timeline,selectedProperties.length);
   const tabs=Object.entries(metrics).map(([key,item])=>`<button class="comparison-tab${key===comparisonMetric?" active":""}" data-comparison-metric="${key}">${esc(item.short)}</button>`).join("");
   const modeButtons=[["auto","自動"],["average","平均のみ"],["individual","個別＋平均"]].map(([mode,label])=>`<button type="button" class="${comparisonSeriesMode===mode?"active":""}" data-series-mode="${mode}">${label}</button>`).join("");
   const legend=resolvedMode==="individual"?selectedProperties.map((property,index)=>`<span><i class="comparison-swatch" style="background:${comparisonColor(index)}"></i>${esc(property.name)}</span>`).join(""):"";
   const minimumSampleCount=PIPAnalysis.minimumAverageSampleSize(selectedProperties.length);
+  const distributionSummary=latestDistribution?`<section class="distribution-summary" aria-label="最新時点の分布サマリー"><div><span>最新比較時点</span><strong>${esc(latestDistribution.period)}</strong></div><div><span>平均値</span><strong>${comparisonValue(comparisonMetric,latestDistribution.average)}</strong></div><div><span>中央値</span><strong>${comparisonValue(comparisonMetric,latestDistribution.median)}</strong></div><div><span>中央50%</span><strong>${comparisonValue(comparisonMetric,latestDistribution.q1)} – ${comparisonValue(comparisonMetric,latestDistribution.q3)}</strong></div><div><span>開示カバレッジ</span><strong>${latestDistribution.count} / ${selectedProperties.length}件</strong><small>${latestDistribution.coveragePercent}%</small></div></section>`:"";
   const rows=selectedProperties.map((property,index)=>{
     const summary=PIPAnalysis.summary(property,comparisonMetric);
     return`<tr><td><div class="comparison-property"><i class="comparison-swatch" style="background:${comparisonColor(index)}"></i><b>${esc(property.name)}</b><button data-remove-comparison="${esc(property.id)}" aria-label="${esc(property.name)}を比較から外す">×</button></div><small>${esc(property.reit)}</small></td><td>${comparisonValue(comparisonMetric,summary.first)}</td><td><b>${comparisonValue(comparisonMetric,summary.latest)}</b></td><td>${comparisonDelta(comparisonMetric,summary.change)}</td><td>${summary.count}期</td></tr>`;
@@ -531,7 +564,7 @@ function renderComparisonAnalysis({contentId="comparisonContent",canvasId="compa
   const modeMessage=resolvedMode==="average"
     ?`${selectedProperties.length}物件を暦年の上期・下期に揃えて平均表示中。母数${minimumSampleCount}件未満の半期は平均線から除外します。`
     :`${selectedProperties.length}物件を暦年の上期・下期に揃え、個別推移と平均を表示中。`;
-  content.innerHTML=`${embedded?'<div class="workspace-analysis-heading"><div><span class="eyebrow">ANALYSIS WORKSPACE</span><h2>選択物件の時系列比較</h2></div><button id="openFullscreenAnalysis" class="secondary-button" type="button">全画面表示</button></div>':""}<div class="comparison-intro"><p>選択数に応じて見やすい表示へ自動調整します。グラフ上をマウスでなぞると、各時点の正確な値と母数を確認できます。</p><span class="comparison-count">${selectedProperties.length} / ${comparisonLimit}物件</span></div><div class="comparison-control-row"><div class="comparison-tabs" role="tablist" aria-label="比較指標">${tabs}</div><div class="series-mode-control" role="group" aria-label="系列表示">${modeButtons}</div></div><p class="series-mode-status">${esc(modeMessage)}${comparisonSeriesMode==="auto"?`（自動基準：${individualSeriesLimit}物件以下は個別表示）`:""}</p><div class="comparison-future"><span>専有坪単価：データ契約準備中</span><span>貸室賃料収入単価：定義統一後に追加</span></div><div class="comparison-chart-card"><div class="chart-card-heading"><div><span class="eyebrow">TIME SERIES</span><h3>${esc(metric.label)}推移</h3></div><div class="chart-card-notes"><span>${selectedProperties.length}物件</span><span>半期単位で整列</span><span><i class="gap-sample"></i>点線は未開示期間</span></div></div><div class="comparison-legend">${legend}<span><i class="comparison-swatch average"></i>平均値</span></div><div class="comparison-chart-stage"><canvas id="${esc(canvasId)}" class="comparison-chart-base" aria-label="${esc(metric.label)}の複数物件比較グラフ"></canvas><canvas class="comparison-chart-overlay" data-chart-overlay-for="${esc(canvasId)}" aria-hidden="true"></canvas><div class="comparison-chart-tooltip" hidden></div></div></div><section class="comparison-table"><h3>${esc(metric.label)} サマリー</h3><div class="table-scroll"><table><thead><tr><th>物件</th><th>開始値</th><th>最新値</th><th>期間変化</th><th>開示時点</th></tr></thead><tbody>${rows}</tbody></table></div></section><p class="privacy-note">比較値は各物件のEvidence付き時系列を使用します。法人ごとに異なる決算月は暦年の上期・下期へ整列し、同じ物件に同一半期の開示が複数ある場合は最新の開示値を使います。平均は欠損値を除外し、選択数が9件以上の場合は母数10%（最低3件）未満の半期を表示しません。未開示値の補間は行いません。点線は前後の開示値を視覚的に結ぶだけで、その期間の数値を推定しません。グラフ操作で公開値が変更されることはありません。</p>`;
+  content.innerHTML=`${embedded?'<div class="workspace-analysis-heading"><div><span class="eyebrow">ANALYSIS WORKSPACE</span><h2>選択物件の時系列比較</h2></div><button id="openFullscreenAnalysis" class="secondary-button" type="button">全画面表示</button></div>':""}<div class="comparison-intro"><p>選択数に応じて見やすい表示へ自動調整します。グラフ上をマウスでなぞると、各時点の正確な値・分布・母数を確認できます。</p><span class="comparison-count">${selectedProperties.length} / ${comparisonLimit}物件</span></div><div class="comparison-control-row"><div class="comparison-tabs" role="tablist" aria-label="比較指標">${tabs}</div><div class="series-mode-control" role="group" aria-label="系列表示">${modeButtons}</div></div><p class="series-mode-status">${esc(modeMessage)}${comparisonSeriesMode==="auto"?`（自動基準：${individualSeriesLimit}物件以下は個別表示）`:""}</p>${distributionSummary}<div class="comparison-future"><span>専有坪単価：データ契約準備中</span><span>貸室賃料収入単価：定義統一後に追加</span></div><div class="comparison-chart-card"><div class="chart-card-heading"><div><span class="eyebrow">TIME SERIES</span><h3>${esc(metric.label)}推移</h3></div><div class="chart-card-notes"><span>${selectedProperties.length}物件</span><span>半期単位で整列</span><span><i class="gap-sample"></i>点線は未開示期間</span></div></div><div class="comparison-legend">${legend}<span><i class="comparison-swatch range"></i>中央50%</span><span><i class="comparison-swatch median"></i>中央値</span><span><i class="comparison-swatch average"></i>平均値</span></div><div class="comparison-chart-stage"><canvas id="${esc(canvasId)}" class="comparison-chart-base" aria-label="${esc(metric.label)}の複数物件比較グラフ"></canvas><canvas class="comparison-chart-overlay" data-chart-overlay-for="${esc(canvasId)}" aria-hidden="true"></canvas><div class="comparison-chart-tooltip" hidden></div></div></div><section class="comparison-table"><h3>${esc(metric.label)} サマリー</h3><div class="table-scroll"><table><thead><tr><th>物件</th><th>開始値</th><th>最新値</th><th>期間変化</th><th>開示時点</th></tr></thead><tbody>${rows}</tbody></table></div></section><p class="privacy-note">比較値は各物件のEvidence付き時系列を使用します。法人ごとに異なる決算月は暦年の上期・下期へ整列し、同じ物件に同一半期の開示が複数ある場合は最新の開示値を使います。平均・中央値・中央50%は欠損値を除外し、選択数が9件以上の場合は母数10%（最低3件）未満の半期を表示しません。未開示値の補間は行いません。点線は前後の開示値を視覚的に結ぶだけで、その期間の数値を推定しません。グラフ操作で公開値が変更されることはありません。</p>`;
   content.querySelectorAll("[data-comparison-metric]").forEach(button=>button.onclick=()=>{comparisonMetric=button.dataset.comparisonMetric;embedded?renderWorkspaceAnalysis():renderComparisonAnalysis()});
   content.querySelectorAll("[data-series-mode]").forEach(button=>button.onclick=()=>{comparisonSeriesMode=button.dataset.seriesMode;embedded?renderWorkspaceAnalysis():renderComparisonAnalysis()});
   content.querySelectorAll("[data-remove-comparison]").forEach(button=>button.onclick=()=>toggleComparison(button.dataset.removeComparison));

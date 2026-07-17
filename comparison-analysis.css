@@ -24,6 +24,13 @@
 .comparison-legend span{display:inline-flex;align-items:center;gap:6px;max-width:260px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .comparison-swatch{width:11px;height:11px;border-radius:50%;display:inline-block}
 .comparison-swatch.average{border-radius:0;height:3px;width:18px;background:#2457e6}
+.comparison-swatch.median{border-radius:0;height:3px;width:18px;background:#172554}
+.comparison-swatch.range{width:18px;border-radius:4px;background:#dbeafe;border:1px solid #93c5fd}
+.distribution-summary{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:8px;margin:2px 0 14px}
+.distribution-summary>div{min-width:0;border:1px solid #dbe3ee;border-radius:11px;padding:10px 11px;background:linear-gradient(180deg,#fff,#f8fafc)}
+.distribution-summary span,.distribution-summary small{display:block;color:#64748b;font-size:9px;font-weight:700}
+.distribution-summary strong{display:block;overflow:hidden;text-overflow:ellipsis;margin-top:5px;color:#172033;font-size:13px;white-space:nowrap}
+.distribution-summary small{margin-top:3px;color:#2563eb}
 .comparison-chart-card{min-width:0;border:1px solid #dbe3ee;border-radius:14px;padding:16px 18px 14px;background:#fff;box-shadow:0 1px 2px #0f172a08}
 .chart-card-heading{display:flex;align-items:flex-start;justify-content:space-between;gap:14px}
 .chart-card-heading h3{margin:3px 0 0;font-size:16px}
@@ -42,6 +49,9 @@
 .comparison-chart-tooltip>div strong{font-size:10px;white-space:nowrap}
 .comparison-chart-tooltip>div small{grid-column:2/-1;color:#94a3b8}
 .comparison-chart-tooltip .tooltip-average{padding-bottom:7px;margin-bottom:4px;border-bottom:1px solid #334155}
+.comparison-chart-tooltip .tooltip-average i{background:#2457e6}
+.comparison-chart-tooltip .tooltip-median i{background:#172554;border:1px solid #fff}
+.comparison-chart-tooltip .tooltip-band i{background:#dbeafe;border:1px solid #93c5fd;border-radius:2px}
 .comparison-table{margin-top:18px}
 .comparison-table h3{font-size:14px;margin:0 0 8px}
 .comparison-table table{width:100%;border-collapse:collapse;font-size:12px}
@@ -66,6 +76,7 @@
   .comparison-count{display:inline-block;margin-top:8px}
   .comparison-control-row{display:block}
   .series-mode-control{width:max-content;max-width:100%;margin:2px 0 8px}
+  .distribution-summary{grid-template-columns:repeat(2,minmax(0,1fr))}
 }
 @media(max-width:600px){
   .comparison-dialog-heading h2{font-size:16px}
@@ -75,4 +86,6 @@
   .chart-card-notes{justify-content:flex-start;margin-top:8px}
   .comparison-chart-stage canvas{height:300px}
   .comparison-button{padding:7px 9px}
+  .distribution-summary{display:flex;overflow:auto;padding-bottom:3px}
+  .distribution-summary>div{min-width:150px}
 }
