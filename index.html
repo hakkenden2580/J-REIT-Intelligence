@@ -3,15 +3,16 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
-  <title>J-REIT Intelligence v0.12</title>
+  <title>J-REIT Intelligence v0.13</title>
   <meta name="description" content="J-REIT物件の地図、時系列分析、類似物件比較を行うProperty Intelligence Platformの試作モジュール">
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
   <link rel="stylesheet" href="styles.css">
   <link rel="stylesheet" href="change-report.css">
   <link rel="stylesheet" href="pdf-events.css">
+  <link rel="stylesheet" href="comparison-analysis.css">
 </head>
 <body>
-  <header><div><h1>J-REIT Intelligence</h1><p>Property Intelligence Platform — J-REIT Module v0.12</p></div><div class="header-actions"><span id="engineStatus" class="engine-status" hidden></span><button id="changeButton" class="change-button" hidden>差分確認</button><button id="qualityButton" class="quality-button" hidden>品質確認</button><button id="pdfStatus" class="pdf-button" hidden>PDF開示</button><span id="dataset" class="dataset">読込中</span><button id="export">CSV出力</button></div></header>
+  <header><div><h1>J-REIT Intelligence</h1><p>Property Intelligence Platform — J-REIT Module v0.13</p></div><div class="header-actions"><span id="engineStatus" class="engine-status" hidden></span><button id="changeButton" class="change-button" hidden>差分確認</button><button id="qualityButton" class="quality-button" hidden>品質確認</button><button id="pdfStatus" class="pdf-button" hidden>PDF開示</button><button id="comparisonButton" class="comparison-button" disabled>比較分析 0件</button><span id="dataset" class="dataset">読込中</span><button id="export">CSV出力</button></div></header>
   <main>
     <aside>
       <input id="search" type="search" placeholder="物件名・住所を検索">
@@ -36,7 +37,15 @@
     <div class="dialog-heading"><div><span class="eyebrow">PDF DISCLOSURE</span><h2>PDF開示・Evidence確認</h2></div><form method="dialog"><button class="dialog-close" aria-label="閉じる">×</button></form></div>
     <div id="pdfContent"><p class="empty">PDF補足データを読み込んでいます。</p></div>
   </dialog>
+  <dialog id="comparisonDialog" class="comparison-dialog">
+    <div class="dialog-heading comparison-dialog-heading">
+      <div><span class="eyebrow">MULTI-PROPERTY ANALYSIS</span><h2>複数物件の時系列比較</h2></div>
+      <div class="comparison-dialog-actions"><button id="clearComparison" class="secondary-button">選択を解除</button><form method="dialog"><button class="dialog-close" aria-label="閉じる">×</button></form></div>
+    </div>
+    <div id="comparisonContent"><p class="empty">比較する物件を2件以上選択してください。</p></div>
+  </dialog>
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script src="analysis-math.js" defer></script>
   <script src="app.js" defer></script>
 </body>
 </html>
