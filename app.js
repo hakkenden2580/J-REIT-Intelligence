@@ -340,7 +340,7 @@ function selectProperty(p){
   const metricOptions=Object.entries(metrics).map(([key,item])=>`<option value="${key}"${key===defaultMetric?" selected":""}>${item.label}</option>`).join("");
   const comparableCards=comparablesFor(p).map(item=>`<button class="comparable" data-property-id="${esc(item.property.id)}"><span class="score">類似度 ${item.score}</span><b>${esc(item.property.name)}</b><small>${item.distance==null?"距離不明":`${item.distance.toFixed(1)}km`}・CR ${pct(item.property.cap)}・${area(item.property.leasable_area)}</small></button>`).join("");
   const inComparison=comparisonIds.has(p.id);
-  document.querySelector("#detail").innerHTML=`<section class="property-detail-hero"><div><span class="eyebrow">PROPERTY DETAIL</span><h2>${esc(p.name)}</h2><div class="address">${esc(p.address)}</div><div class="property-badges"><span class="pill">${esc(p.type)}</span><span class="pill neutral">${esc(p.reit)}</span><span class="pill neutral">座標：${esc(geocodeQuality)}</span></div></div><div class="detail-period"><span>最新開示</span><b>${esc(periodLabel)}</b></div></section><div class="detail-actions"><button id="detailCompare" class="detail-compare-button${inComparison?" selected":""}">${inComparison?"比較対象から外す":"比較分析に追加"}</button>${p.lat!=null&&p.lng!=null?'<button id="detailRadiusSearch" class="detail-spatial-button">この物件を中心に半径検索</button>':""}</div><section class="detail-section"><div class="detail-section-heading"><div><span class="eyebrow">KEY METRICS</span><h3>最新指標</h3></div><span class="evidence-count">Evidence ${evidenceCount}項目</span></div><div class="metrics"><div class="metric primary"><span>直接還元利回り（CR）</span><b>${pct(p.cap)}</b></div><div class="metric primary"><span>鑑定評価額</span><b>${yen(p.appraisal)}</b></div><div class="metric"><span>稼働率</span><b>${pct(p.occupancy)}</b></div><div class="metric"><span>NOI（当期）</span><b>${yen(p.noi)}</b></div><div class="metric"><span>取得価格</span><b>${yen(p.price)}</b></div><div class="metric"><span>期末簿価</span><b>${yen(p.book_value)}</b></div></div></section><section class="detail-section"><div class="detail-section-heading"><div><span class="eyebrow">OVERVIEW</span><h3>物件概要</h3></div></div><dl class="property-overview"><div><dt>投資法人</dt><dd>${esc(p.reit)}</dd></div><div><dt>証券コード</dt><dd>${esc(p.reit_code||"—")}</dd></div><div><dt>アセットタイプ</dt><dd>${esc(p.type||"—")}</dd></div><div><dt>地域</dt><dd>${esc(p.region||"—")}</dd></div><div><dt>賃貸可能面積</dt><dd>${area(p.leasable_area)}</dd></div><div><dt>賃貸面積</dt><dd>${area(p.leased_area)}</dd></div><div><dt>テナント数</dt><dd>${text(p.tenants)}</dd></div><div><dt>割引率</dt><dd>${pct(p.discount_rate)}</dd></div><div><dt>最終還元利回り</dt><dd>${pct(p.terminal_cap_rate)}</dd></div><div><dt>座標</dt><dd>${p.lat==null||p.lng==null?"—":`${Number(p.lat).toFixed(5)}, ${Number(p.lng).toFixed(5)}`}</dd></div></dl></section>${pdfEventPanel(p)}<section class="analysis"><div class="analysis-heading"><div><span class="eyebrow">HISTORY</span><h3>物件データの推移</h3></div><select id="historyMetric" aria-label="推移指標">${metricOptions}</select></div><div class="history-chart-stage"><canvas id="historyChart" aria-label="物件データ推移グラフ"></canvas><div id="historyTooltip" class="history-chart-tooltip" hidden></div></div><p class="chart-help">グラフをなぞるかドラッグすると、開示時点と正確な値を確認できます。</p><div id="historySummary"></div></section><section class="analysis"><div class="analysis-heading"><div><span class="eyebrow">COMPARABLES</span><h3>類似物件 上位5件</h3></div></div><p class="method">距離35%、面積25%、取得価格15%、CR15%、稼働率10%で算出</p><div class="comparable-list">${comparableCards||'<p class="empty">比較できる物件がありません。</p>'}</div></section>${sourcePanel(p)}`;
+  document.querySelector("#detail").innerHTML=`<section class="property-detail-hero"><div><span class="eyebrow">PROPERTY DETAIL</span><h2>${esc(p.name)}</h2><div class="address">${esc(p.address)}</div><div class="property-badges"><span class="pill">${esc(p.type)}</span><span class="pill neutral">${esc(p.reit)}</span><span class="pill neutral">座標：${esc(geocodeQuality)}</span></div></div><div class="detail-period"><span>最新開示</span><b>${esc(periodLabel)}</b></div></section><div class="detail-actions"><button id="detailCompare" class="detail-compare-button${inComparison?" selected":""}">${inComparison?"比較対象から外す":"比較分析に追加"}</button>${p.lat!=null&&p.lng!=null?'<button id="detailRadiusSearch" class="detail-spatial-button">この物件を中心に半径検索</button>':""}</div><section class="detail-section"><div class="detail-section-heading"><div><span class="eyebrow">KEY METRICS</span><h3>最新指標</h3></div><span class="evidence-count">Evidence ${evidenceCount}項目</span></div><div class="metrics"><div class="metric primary"><span>直接還元利回り（CR）</span><b>${pct(p.cap)}</b></div><div class="metric primary"><span>鑑定評価額</span><b>${yen(p.appraisal)}</b></div><div class="metric"><span>稼働率</span><b>${pct(p.occupancy)}</b></div><div class="metric"><span>NOI（当期）</span><b>${yen(p.noi)}</b></div><div class="metric"><span>取得価格</span><b>${yen(p.price)}</b></div><div class="metric"><span>期末簿価</span><b>${yen(p.book_value)}</b></div></div></section><section class="detail-section"><div class="detail-section-heading"><div><span class="eyebrow">OVERVIEW</span><h3>物件概要</h3></div></div><dl class="property-overview"><div><dt>投資法人</dt><dd>${esc(p.reit)}</dd></div><div><dt>証券コード</dt><dd>${esc(p.reit_code||"—")}</dd></div><div><dt>アセットタイプ</dt><dd>${esc(p.type||"—")}</dd></div><div><dt>地域</dt><dd>${esc(p.region||"—")}</dd></div><div><dt>賃貸可能面積</dt><dd>${area(p.leasable_area)}</dd></div><div><dt>賃貸面積</dt><dd>${area(p.leased_area)}</dd></div><div><dt>テナント数</dt><dd>${text(p.tenants)}</dd></div><div><dt>割引率</dt><dd>${pct(p.discount_rate)}</dd></div><div><dt>最終還元利回り</dt><dd>${pct(p.terminal_cap_rate)}</dd></div><div><dt>座標</dt><dd>${p.lat==null||p.lng==null?"—":`${Number(p.lat).toFixed(5)}, ${Number(p.lng).toFixed(5)}`}</dd></div></dl></section>${pdfEventPanel(p)}<section class="analysis history-card"><div class="analysis-heading"><div><span class="eyebrow">HISTORY</span><h3>物件データの推移</h3></div><select id="historyMetric" aria-label="推移指標">${metricOptions}</select></div><div class="history-chart-stage"><canvas id="historyChart" class="history-chart-base" aria-label="物件データ推移グラフ"></canvas><canvas class="history-chart-overlay" aria-hidden="true"></canvas><div id="historyTooltip" class="history-chart-tooltip" hidden></div></div><p class="chart-help">グラフをなぞると、開示時点と正確な値を確認できます。点線区間は未開示期間で、値は推定していません。</p><div id="historySummary"></div></section><section class="analysis"><div class="analysis-heading"><div><span class="eyebrow">COMPARABLES</span><h3>類似物件 上位5件</h3></div></div><p class="method">距離35%、面積25%、取得価格15%、CR15%、稼働率10%で算出</p><div class="comparable-list">${comparableCards||'<p class="empty">比較できる物件がありません。</p>'}</div></section>${sourcePanel(p)}`;
   const selector=document.querySelector("#historyMetric");selector.onchange=()=>drawHistory(p,selector.value);drawHistory(p,selector.value);
   document.querySelector("#detailCompare").onclick=()=>toggleComparison(p.id);
   const radiusButton=document.querySelector("#detailRadiusSearch");if(radiusButton)radiusButton.onclick=()=>{toggleRadiusPanel(true);applyRadiusFilter(p,`${p.name}中心`)};
@@ -394,18 +394,73 @@ function comparisonDelta(metricKey,value){
     :`${sign}${Number(value).toFixed(1)}pt`;
 }
 
-function drawComparisonChart(selectedProperties,metricKey,canvasId="comparisonChart",hoverIndex=null,bindInteraction=true){
+function bindStableChartResize(stage,render){
+  stage._pipChartRender=render;
+  if(typeof ResizeObserver==="undefined"||stage._pipResizeObserver)return;
+  let lastWidth=Math.round(stage.getBoundingClientRect().width);
+  let frame=null;
+  stage._pipResizeObserver=new ResizeObserver(entries=>{
+    const width=Math.round(entries[0]?.contentRect?.width||0);
+    if(!width||Math.abs(width-lastWidth)<2)return;
+    lastWidth=width;
+    if(frame)cancelAnimationFrame(frame);
+    frame=requestAnimationFrame(()=>stage._pipChartRender?.());
+  });
+  stage._pipResizeObserver.observe(stage);
+}
+
+function drawComparisonHover(canvas,overlay,index){
+  const model=canvas._pipChartModel;if(!model)return;
+  const ctx=overlay.getContext("2d");
+  ctx.clearRect(0,0,model.width,model.height);
+  if(index==null||!model.timeline[index])return;
+  const x=model.xAt(index);
+  ctx.save();
+  ctx.strokeStyle="#64748b";ctx.lineWidth=1;ctx.setLineDash([4,4]);
+  ctx.beginPath();ctx.moveTo(x,model.pad.top);ctx.lineTo(x,model.pad.top+model.plotH);ctx.stroke();
+  ctx.restore();
+  const highlight=(value,color,radius=5)=>{
+    if(value==null)return;
+    ctx.fillStyle="#fff";ctx.strokeStyle=color;ctx.lineWidth=3;
+    ctx.beginPath();ctx.arc(x,model.yAt(value),radius,0,Math.PI*2);ctx.fill();ctx.stroke();
+  };
+  model.renderedSeries.forEach((series,seriesIndex)=>highlight(series[index],comparisonColor(seriesIndex),4));
+  highlight(model.average[index],"#2457e6",5.5);
+}
+
+function bindComparisonInteraction(canvas,overlay){
+  if(overlay.dataset.chartInteractionBound)return;
+  overlay.dataset.chartInteractionBound="true";
+  const inspect=event=>{
+    const model=canvas._pipChartModel;if(!model?.timeline.length)return;
+    const rect=overlay.getBoundingClientRect();
+    const pointerX=(event.clientX-rect.left)*(model.width/Math.max(rect.width,1));
+    const index=PIPAnalysis.nearestTimelineIndex(pointerX,model.pad.left,model.plotW,model.timeline.length);
+    drawComparisonHover(canvas,overlay,index);
+    showComparisonTooltip(canvas,index,event.clientX-rect.left,event.clientY-rect.top);
+  };
+  overlay.addEventListener("pointerdown",inspect);
+  overlay.addEventListener("pointermove",inspect);
+  overlay.addEventListener("pointerleave",()=>{
+    hideComparisonTooltip(canvas);
+    drawComparisonHover(canvas,overlay,null);
+  });
+}
+
+function drawComparisonChart(selectedProperties,metricKey,canvasId="comparisonChart"){
   const canvas=document.querySelector(`#${canvasId}`);if(!canvas)return;
+  const stage=canvas.parentElement,overlay=stage.querySelector(".comparison-chart-overlay");if(!overlay)return;
   const resolvedMode=PIPAnalysis.resolveSeriesMode(comparisonSeriesMode,selectedProperties.length,individualSeriesLimit);
   const timeline=PIPAnalysis.buildTimeline(selectedProperties);
   const propertySeries=selectedProperties.map(property=>PIPAnalysis.buildSeries(property,metricKey,timeline));
   const average=PIPAnalysis.averageSeries(propertySeries),sampleCounts=PIPAnalysis.sampleCounts(propertySeries);
   const renderedSeries=resolvedMode==="individual"?propertySeries:[];
   const available=[...renderedSeries.flat(),...average].filter(value=>value!=null);
-  const width=Math.max(canvas.clientWidth,640),height=390,dpr=window.devicePixelRatio||1;
-  canvas.width=width*dpr;canvas.height=height*dpr;
-  const ctx=canvas.getContext("2d");ctx.scale(dpr,dpr);ctx.clearRect(0,0,width,height);
-  const pad={left:68,right:22,top:20,bottom:58},plotW=width-pad.left-pad.right,plotH=height-pad.top-pad.bottom;
+  const preferredHeight=window.innerWidth<700?300:canvasId==="workspaceComparisonChart"?470:430;
+  const {width,height}=PIPChart.stageSize(stage,preferredHeight,window.innerWidth-24);
+  const ctx=PIPChart.prepareCanvas(canvas,width,height,window.devicePixelRatio);
+  PIPChart.prepareCanvas(overlay,width,height,window.devicePixelRatio);
+  const pad={left:70,right:24,top:24,bottom:62},plotW=width-pad.left-pad.right,plotH=height-pad.top-pad.bottom;
   if(!timeline.length||!available.length){ctx.fillStyle="#64748b";ctx.font="13px sans-serif";ctx.fillText("選択物件にこの指標の履歴はありません",pad.left,90);return}
   let min=Math.min(...available),max=Math.max(...available);
   if(metricKey==="occupancy"){max=Math.min(100,Math.max(max,100));min=Math.max(0,min-(max-min)*.12)}
@@ -421,42 +476,18 @@ function drawComparisonChart(selectedProperties,metricKey,canvasId="comparisonCh
     const label=metricKey==="noi"||metricKey==="appraisal"?Math.round(value).toLocaleString("ja-JP"):value.toFixed(1);
     ctx.fillText(label,pad.left-9,y);
   }
-  const drawSeries=(series,color,{dashed=false,width:lineWidth=2.3,points=true}={})=>{
-    ctx.save();ctx.strokeStyle=color;ctx.lineWidth=lineWidth;ctx.lineJoin="round";ctx.setLineDash(dashed?[7,5]:[]);
-    ctx.beginPath();let active=false;
-    series.forEach((value,index)=>{if(value==null){active=false;return}const x=xAt(index),y=yAt(value);if(!active){ctx.moveTo(x,y);active=true}else ctx.lineTo(x,y)});
-    ctx.stroke();ctx.restore();
-    if(points)series.forEach((value,index)=>{if(value==null)return;ctx.fillStyle="#fff";ctx.strokeStyle=color;ctx.lineWidth=2;ctx.beginPath();ctx.arc(xAt(index),yAt(value),3,0,Math.PI*2);ctx.fill();ctx.stroke()});
-  };
-  renderedSeries.forEach((series,index)=>drawSeries(series,comparisonColor(index),{points:selectedProperties.length<=individualSeriesLimit}));
-  drawSeries(average,"#0f172a",{dashed:resolvedMode==="individual",width:3,points:true});
+  renderedSeries.forEach((series,index)=>PIPChart.drawSegmentedSeries(ctx,series,xAt,yAt,{
+    color:comparisonColor(index),width:2,points:true,pointRadius:2.8,opacity:.76,
+  }));
+  PIPChart.drawSegmentedSeries(ctx,average,xAt,yAt,{
+    color:"#2457e6",gapColor:"#2457e6",width:3.4,points:true,pointRadius:3.7,
+  });
   const step=Math.max(1,Math.ceil(timeline.length/8));ctx.textAlign="right";ctx.textBaseline="top";ctx.fillStyle="#64748b";ctx.font="10px sans-serif";
   timeline.forEach((point,index)=>{if(index%step!==0&&index!==timeline.length-1)return;ctx.save();ctx.translate(xAt(index),height-pad.bottom+10);ctx.rotate(-Math.PI/4);ctx.fillText(point.label,0,0);ctx.restore()});
   ctx.save();ctx.translate(16,pad.top+plotH/2);ctx.rotate(-Math.PI/2);ctx.textAlign="center";ctx.textBaseline="top";ctx.fillStyle="#475569";ctx.font="11px sans-serif";ctx.fillText(metrics[metricKey].label,0,0);ctx.restore();
-  if(hoverIndex!=null&&timeline[hoverIndex]){
-    const x=xAt(hoverIndex);
-    ctx.save();ctx.strokeStyle="#334155";ctx.lineWidth=1;ctx.setLineDash([4,4]);ctx.beginPath();ctx.moveTo(x,pad.top);ctx.lineTo(x,pad.top+plotH);ctx.stroke();ctx.restore();
-    const highlight=(value,color,radius=5)=>{if(value==null)return;ctx.fillStyle="#fff";ctx.strokeStyle=color;ctx.lineWidth=3;ctx.beginPath();ctx.arc(x,yAt(value),radius,0,Math.PI*2);ctx.fill();ctx.stroke()};
-    renderedSeries.forEach((series,index)=>highlight(series[hoverIndex],comparisonColor(index),4));
-    highlight(average[hoverIndex],"#0f172a",5);
-  }
-  canvas._pipChartModel={selectedProperties,metricKey,timeline,propertySeries,average,sampleCounts,resolvedMode,pad,plotW,width,hoverIndex};
-  if(bindInteraction&&!canvas.dataset.chartInteractionBound){
-    canvas.dataset.chartInteractionBound="true";
-    const inspect=event=>{
-      const model=canvas._pipChartModel;if(!model?.timeline.length)return;
-      const rect=canvas.getBoundingClientRect(),pointerX=event.clientX-rect.left;
-      const index=PIPAnalysis.nearestTimelineIndex(pointerX,model.pad.left,model.plotW,model.timeline.length);
-      drawComparisonChart(model.selectedProperties,model.metricKey,canvasId,index,false);
-      showComparisonTooltip(canvas,index,event.clientX-rect.left,event.clientY-rect.top);
-    };
-    canvas.addEventListener("pointerdown",event=>{canvas.setPointerCapture?.(event.pointerId);inspect(event)});
-    canvas.addEventListener("pointermove",inspect);
-    canvas.addEventListener("pointerleave",()=>{
-      const model=canvas._pipChartModel;if(!model)return;
-      hideComparisonTooltip(canvas);drawComparisonChart(model.selectedProperties,model.metricKey,canvasId,null,false);
-    });
-  }
+  canvas._pipChartModel={selectedProperties,metricKey,timeline,propertySeries,renderedSeries,average,sampleCounts,resolvedMode,pad,plotW,plotH,width,height,xAt,yAt};
+  bindComparisonInteraction(canvas,overlay);
+  bindStableChartResize(stage,()=>drawComparisonChart(selectedProperties,metricKey,canvasId));
 }
 
 function showComparisonTooltip(canvas,index,pointerX,pointerY){
@@ -491,7 +522,7 @@ function renderComparisonAnalysis({contentId="comparisonContent",canvasId="compa
     return`<tr><td><div class="comparison-property"><i class="comparison-swatch" style="background:${comparisonColor(index)}"></i><b>${esc(property.name)}</b><button data-remove-comparison="${esc(property.id)}" aria-label="${esc(property.name)}を比較から外す">×</button></div><small>${esc(property.reit)}</small></td><td>${comparisonValue(comparisonMetric,summary.first)}</td><td><b>${comparisonValue(comparisonMetric,summary.latest)}</b></td><td>${comparisonDelta(comparisonMetric,summary.change)}</td><td>${summary.count}期</td></tr>`;
   }).join("");
   const modeMessage=resolvedMode==="average"?`${selectedProperties.length}物件の平均推移を表示中。各時点で開示値がある物件だけを母数にしています。`:`${selectedProperties.length}物件の個別推移と平均を表示中。`;
-  content.innerHTML=`${embedded?'<div class="workspace-analysis-heading"><div><span class="eyebrow">ANALYSIS WORKSPACE</span><h2>選択物件の時系列比較</h2></div><button id="openFullscreenAnalysis" class="secondary-button" type="button">全画面表示</button></div>':""}<div class="comparison-intro"><p>選択数に応じて見やすい表示へ自動調整します。グラフ上をマウスでなぞるかドラッグすると、各時点の正確な値を確認できます。</p><span class="comparison-count">${selectedProperties.length} / ${comparisonLimit}物件</span></div><div class="comparison-control-row"><div class="comparison-tabs" role="tablist" aria-label="比較指標">${tabs}</div><div class="series-mode-control" role="group" aria-label="系列表示">${modeButtons}</div></div><p class="series-mode-status">${esc(modeMessage)}${comparisonSeriesMode==="auto"?`（自動基準：${individualSeriesLimit}物件以下は個別表示）`:""}</p><div class="comparison-future"><span>専有坪単価：データ契約準備中</span><span>貸室賃料収入単価：定義統一後に追加</span></div><div class="comparison-chart-card"><div class="comparison-legend">${legend}<span><i class="comparison-swatch average"></i>平均値</span></div><div class="comparison-chart-stage"><canvas id="${esc(canvasId)}" aria-label="${esc(metric.label)}の複数物件比較グラフ"></canvas><div class="comparison-chart-tooltip" hidden></div></div></div><section class="comparison-table"><h3>${esc(metric.label)} サマリー</h3><div class="table-scroll"><table><thead><tr><th>物件</th><th>開始値</th><th>最新値</th><th>期間変化</th><th>開示時点</th></tr></thead><tbody>${rows}</tbody></table></div></section><p class="privacy-note">比較値は各物件のEvidence付き時系列を使用します。平均は欠損値を除外して算出し、未開示値の補間は行いません。グラフ操作で公開値が変更されることはありません。</p>`;
+  content.innerHTML=`${embedded?'<div class="workspace-analysis-heading"><div><span class="eyebrow">ANALYSIS WORKSPACE</span><h2>選択物件の時系列比較</h2></div><button id="openFullscreenAnalysis" class="secondary-button" type="button">全画面表示</button></div>':""}<div class="comparison-intro"><p>選択数に応じて見やすい表示へ自動調整します。グラフ上をマウスでなぞると、各時点の正確な値を確認できます。</p><span class="comparison-count">${selectedProperties.length} / ${comparisonLimit}物件</span></div><div class="comparison-control-row"><div class="comparison-tabs" role="tablist" aria-label="比較指標">${tabs}</div><div class="series-mode-control" role="group" aria-label="系列表示">${modeButtons}</div></div><p class="series-mode-status">${esc(modeMessage)}${comparisonSeriesMode==="auto"?`（自動基準：${individualSeriesLimit}物件以下は個別表示）`:""}</p><div class="comparison-future"><span>専有坪単価：データ契約準備中</span><span>貸室賃料収入単価：定義統一後に追加</span></div><div class="comparison-chart-card"><div class="chart-card-heading"><div><span class="eyebrow">TIME SERIES</span><h3>${esc(metric.label)}推移</h3></div><div class="chart-card-notes"><span>${selectedProperties.length}物件</span><span><i class="gap-sample"></i>点線は未開示期間</span></div></div><div class="comparison-legend">${legend}<span><i class="comparison-swatch average"></i>平均値</span></div><div class="comparison-chart-stage"><canvas id="${esc(canvasId)}" class="comparison-chart-base" aria-label="${esc(metric.label)}の複数物件比較グラフ"></canvas><canvas class="comparison-chart-overlay" data-chart-overlay-for="${esc(canvasId)}" aria-hidden="true"></canvas><div class="comparison-chart-tooltip" hidden></div></div></div><section class="comparison-table"><h3>${esc(metric.label)} サマリー</h3><div class="table-scroll"><table><thead><tr><th>物件</th><th>開始値</th><th>最新値</th><th>期間変化</th><th>開示時点</th></tr></thead><tbody>${rows}</tbody></table></div></section><p class="privacy-note">比較値は各物件のEvidence付き時系列を使用します。平均は欠損値を除外して算出し、未開示値の補間は行いません。点線は前後の開示値を視覚的に結ぶだけで、その期間の数値を推定しません。グラフ操作で公開値が変更されることはありません。</p>`;
   content.querySelectorAll("[data-comparison-metric]").forEach(button=>button.onclick=()=>{comparisonMetric=button.dataset.comparisonMetric;embedded?renderWorkspaceAnalysis():renderComparisonAnalysis()});
   content.querySelectorAll("[data-series-mode]").forEach(button=>button.onclick=()=>{comparisonSeriesMode=button.dataset.seriesMode;embedded?renderWorkspaceAnalysis():renderComparisonAnalysis()});
   content.querySelectorAll("[data-remove-comparison]").forEach(button=>button.onclick=()=>toggleComparison(button.dataset.removeComparison));
@@ -509,48 +540,69 @@ function renderWorkspaceAnalysis(){
   renderComparisonAnalysis({contentId:"workspaceAnalysis",canvasId:"workspaceComparisonChart",embedded:true});
 }
 
-function drawHistory(p,metricKey,hoverIndex=null,bindInteraction=true){
+function drawHistoryHover(canvas,overlay,index){
+  const model=canvas._pipHistoryModel;if(!model)return;
+  const ctx=overlay.getContext("2d");
+  ctx.clearRect(0,0,model.width,model.height);
+  if(index==null||!model.history[index])return;
+  const x=model.xAt(index),value=model.values[index];
+  ctx.save();ctx.strokeStyle="#64748b";ctx.lineWidth=1;ctx.setLineDash([4,4]);
+  ctx.beginPath();ctx.moveTo(x,model.pad.top);ctx.lineTo(x,model.pad.top+model.plotH);ctx.stroke();ctx.restore();
+  if(value!=null){
+    ctx.fillStyle="#fff";ctx.strokeStyle=model.metric.color;ctx.lineWidth=3;
+    ctx.beginPath();ctx.arc(x,model.yAt(value),5.5,0,Math.PI*2);ctx.fill();ctx.stroke();
+  }
+}
+
+function bindHistoryInteraction(canvas,overlay){
+  if(overlay.dataset.historyInteractionBound)return;
+  overlay.dataset.historyInteractionBound="true";
+  const inspect=event=>{
+    const model=canvas._pipHistoryModel;if(!model?.history.length)return;
+    const rect=overlay.getBoundingClientRect();
+    const pointerX=(event.clientX-rect.left)*(model.width/Math.max(rect.width,1));
+    const index=PIPAnalysis.nearestTimelineIndex(pointerX,model.pad.left,model.plotW,model.history.length);
+    drawHistoryHover(canvas,overlay,index);
+    const tooltip=document.querySelector("#historyTooltip"),point=model.history[index],value=model.values[index];
+    tooltip.innerHTML=`<b>${esc(point.as_of_date||point.period||`${point.period_no||"—"}期`)}</b><span>${esc(metrics[model.metricKey].label)}</span><strong>${comparisonValue(model.metricKey,value)}</strong>`;
+    tooltip.hidden=false;
+    const stage=canvas.parentElement,maxLeft=Math.max(8,stage.clientWidth-tooltip.offsetWidth-8),maxTop=Math.max(8,stage.clientHeight-tooltip.offsetHeight-8);
+    tooltip.style.left=`${Math.max(8,Math.min(maxLeft,event.clientX-rect.left+12))}px`;
+    tooltip.style.top=`${Math.max(8,Math.min(maxTop,event.clientY-rect.top-tooltip.offsetHeight/2))}px`;
+  };
+  overlay.addEventListener("pointerdown",inspect);
+  overlay.addEventListener("pointermove",inspect);
+  overlay.addEventListener("pointerleave",()=>{
+    const tooltip=document.querySelector("#historyTooltip");if(tooltip)tooltip.hidden=true;
+    drawHistoryHover(canvas,overlay,null);
+  });
+}
+
+function drawHistory(p,metricKey){
   const metric=metrics[metricKey],history=[...p.periods].sort((a,b)=>(a.as_of_date||"").localeCompare(b.as_of_date||""));
   const values=history.map(item=>item[metricKey]);const available=values.filter(v=>v!=null);
   const canvas=document.querySelector("#historyChart");if(!canvas)return;
-  const width=Math.max(canvas.clientWidth,320),height=190,dpr=window.devicePixelRatio||1;
-  canvas.width=width*dpr;canvas.height=height*dpr;const ctx=canvas.getContext("2d");ctx.scale(dpr,dpr);ctx.clearRect(0,0,width,height);
-  const pad={left:48,right:14,top:18,bottom:30},plotW=width-pad.left-pad.right,plotH=height-pad.top-pad.bottom;
+  const stage=canvas.parentElement,overlay=stage.querySelector(".history-chart-overlay");if(!overlay)return;
+  const {width,height}=PIPChart.stageSize(stage,230,window.innerWidth-24);
+  const ctx=PIPChart.prepareCanvas(canvas,width,height,window.devicePixelRatio);
+  PIPChart.prepareCanvas(overlay,width,height,window.devicePixelRatio);
+  const pad={left:52,right:16,top:20,bottom:40},plotW=width-pad.left-pad.right,plotH=height-pad.top-pad.bottom;
   if(!available.length){ctx.fillStyle="#64748b";ctx.font="13px sans-serif";ctx.fillText("この指標の履歴はありません",pad.left,90);return}
   let min=Math.min(...available),max=Math.max(...available);if(min===max){min-=Math.abs(min||1)*.05;max+=Math.abs(max||1)*.05}else{const margin=(max-min)*.12;min-=margin;max+=margin}
   ctx.font="10px sans-serif";ctx.textAlign="right";ctx.textBaseline="middle";
   for(let i=0;i<4;i++){const y=pad.top+plotH*i/3,value=max-(max-min)*i/3;ctx.strokeStyle="#e2e8f0";ctx.lineWidth=1;ctx.beginPath();ctx.moveTo(pad.left,y);ctx.lineTo(width-pad.right,y);ctx.stroke();ctx.fillStyle="#64748b";ctx.fillText(metricKey==="noi"||metricKey==="appraisal"?Math.round(value).toLocaleString():value.toFixed(1),pad.left-7,y)}
   const xAt=i=>pad.left+(history.length===1?plotW/2:plotW*i/(history.length-1)),yAt=value=>pad.top+(max-value)/(max-min)*plotH;
-  ctx.strokeStyle=metric.color;ctx.lineWidth=2.5;ctx.lineJoin="round";ctx.beginPath();let started=false;
-  values.forEach((value,i)=>{if(value==null){started=false;return}const x=xAt(i),y=yAt(value);if(!started){ctx.moveTo(x,y);started=true}else ctx.lineTo(x,y)});ctx.stroke();
-  values.forEach((value,i)=>{if(value==null)return;ctx.fillStyle="#fff";ctx.strokeStyle=metric.color;ctx.lineWidth=2;ctx.beginPath();ctx.arc(xAt(i),yAt(value),3.5,0,Math.PI*2);ctx.fill();ctx.stroke()});
-  ctx.textAlign="center";ctx.textBaseline="top";ctx.fillStyle="#64748b";history.forEach((item,i)=>{if(history.length<=6||i%2===0||i===history.length-1)ctx.fillText(item.period_no?`${item.period_no}期`:item.period,xAt(i),height-pad.bottom+9)});
-  if(hoverIndex!=null&&history[hoverIndex]){
-    const x=xAt(hoverIndex),value=values[hoverIndex];
-    ctx.save();ctx.strokeStyle="#334155";ctx.lineWidth=1;ctx.setLineDash([4,4]);ctx.beginPath();ctx.moveTo(x,pad.top);ctx.lineTo(x,pad.top+plotH);ctx.stroke();ctx.restore();
-    if(value!=null){ctx.fillStyle="#fff";ctx.strokeStyle=metric.color;ctx.lineWidth=3;ctx.beginPath();ctx.arc(x,yAt(value),5,0,Math.PI*2);ctx.fill();ctx.stroke()}
-  }
-  canvas._pipHistoryModel={property:p,metricKey,history,values,pad,plotW,hoverIndex};
-  if(bindInteraction&&!canvas.dataset.historyInteractionBound){
-    canvas.dataset.historyInteractionBound="true";
-    const inspect=event=>{
-      const model=canvas._pipHistoryModel;if(!model?.history.length)return;
-      const rect=canvas.getBoundingClientRect(),pointerX=event.clientX-rect.left;
-      const index=PIPAnalysis.nearestTimelineIndex(pointerX,model.pad.left,model.plotW,model.history.length);
-      drawHistory(model.property,model.metricKey,index,false);
-      const tooltip=document.querySelector("#historyTooltip"),point=model.history[index],value=model.values[index];
-      tooltip.innerHTML=`<b>${esc(point.as_of_date||point.period||`${point.period_no||"—"}期`)}</b><span>${esc(metrics[model.metricKey].label)}</span><strong>${comparisonValue(model.metricKey,value)}</strong>`;
-      tooltip.hidden=false;
-      const stage=canvas.parentElement,maxLeft=Math.max(8,stage.clientWidth-tooltip.offsetWidth-8),maxTop=Math.max(8,stage.clientHeight-tooltip.offsetHeight-8);
-      tooltip.style.left=`${Math.max(8,Math.min(maxLeft,pointerX+12))}px`;tooltip.style.top=`${Math.max(8,Math.min(maxTop,event.clientY-rect.top-tooltip.offsetHeight/2))}px`;
-    };
-    canvas.addEventListener("pointerdown",event=>{canvas.setPointerCapture?.(event.pointerId);inspect(event)});
-    canvas.addEventListener("pointermove",inspect);
-    canvas.addEventListener("pointerleave",()=>{
-      const model=canvas._pipHistoryModel,tooltip=document.querySelector("#historyTooltip");if(tooltip)tooltip.hidden=true;
-      if(model)drawHistory(model.property,model.metricKey,null,false);
-    });
-  }
+  PIPChart.drawSegmentedSeries(ctx,values,xAt,yAt,{color:metric.color,gapColor:metric.color,width:2.8,points:true,pointRadius:3.4});
+  const labelStep=Math.max(1,Math.ceil(history.length/6));
+  ctx.textAlign="right";ctx.textBaseline="top";ctx.fillStyle="#64748b";
+  history.forEach((item,i)=>{
+    if(i%labelStep!==0&&i!==history.length-1)return;
+    const label=item.as_of_date?String(item.as_of_date).slice(0,7):(item.period_no?`${item.period_no}期`:item.period);
+    ctx.save();ctx.translate(xAt(i),height-pad.bottom+9);ctx.rotate(-Math.PI/5);ctx.fillText(label,0,0);ctx.restore();
+  });
+  canvas._pipHistoryModel={property:p,metric,metricKey,history,values,pad,plotW,plotH,width,height,xAt,yAt};
+  bindHistoryInteraction(canvas,overlay);
+  bindStableChartResize(stage,()=>drawHistory(p,metricKey));
   const latest=[...history].reverse().find(item=>item[metricKey]!=null),previous=[...history].reverse().filter(item=>item[metricKey]!=null)[1];
   const delta=latest&&previous?latest[metricKey]-previous[metricKey]:null;
   document.querySelector("#historySummary").innerHTML=`<div class="history-summary"><div><span>最新値</span><b>${latest?metric.format(latest[metricKey]):"—"}</b></div><div><span>前期差</span><b class="${delta>0?"up":delta<0?"down":""}">${delta==null?"—":`${delta>0?"+":""}${metricKey==="noi"||metricKey==="appraisal"?`${delta.toLocaleString("ja-JP",{maximumFractionDigits:1})}百万円`:`${delta.toFixed(1)}pt`}`}</b></div><div><span>データ期間</span><b>${available.length}期</b></div></div>`;

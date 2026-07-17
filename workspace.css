@@ -47,11 +47,11 @@ main{grid-template-columns:310px minmax(0,1fr)}
 .property-name-button small{display:block;color:#64748b;font-weight:400;margin-top:3px}
 .property-checkbox{width:16px;height:16px;margin:0;accent-color:#6d28d9}
 .table-note{display:flex;justify-content:space-between;align-items:center;gap:10px;color:#64748b;font-size:10px;margin:0 2px 9px}
-.analysis-view #workspaceAnalysis{max-width:1400px;margin:0 auto}
+.analysis-view #workspaceAnalysis{width:100%;max-width:1400px;min-width:0;margin:0 auto}
 .workspace-analysis-heading{display:flex;align-items:center;justify-content:space-between;gap:12px;margin:0 0 12px}
 .workspace-analysis-heading h2{font-size:18px;margin:3px 0 0}
 .analysis-view .comparison-chart-card,.analysis-view .comparison-table{background:#fff}
-.analysis-view #workspaceComparisonChart{height:430px}
+.analysis-view .comparison-chart-stage canvas{height:470px}
 .analysis-empty{min-height:340px;display:grid;place-items:center;text-align:center;background:#fff;border:1px dashed #cbd5e1;border-radius:12px;color:#64748b}
 .analysis-empty b{display:block;color:#334155;font-size:16px;margin-bottom:6px}
 @media(max-width:1100px){

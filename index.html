@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
-  <title>J-REIT Intelligence v0.18</title>
+  <title>J-REIT Intelligence v0.19</title>
   <meta name="description" content="J-REIT物件の地図、時系列分析、類似物件比較を行うProperty Intelligence Platformの試作モジュール">
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
   <link rel="stylesheet" href="styles.css">
@@ -13,9 +13,10 @@
   <link rel="stylesheet" href="workspace.css">
   <link rel="stylesheet" href="map-analysis.css">
   <link rel="stylesheet" href="spatial-analysis.css">
+  <link rel="stylesheet" href="chart-polish.css">
 </head>
 <body>
-  <header><div><h1>J-REIT Intelligence</h1><p>Property Intelligence Platform — J-REIT Module v0.18</p></div><div class="header-actions"><span id="engineStatus" class="engine-status" hidden></span><button id="changeButton" class="change-button" hidden>差分確認</button><button id="qualityButton" class="quality-button" hidden>品質確認</button><button id="pdfStatus" class="pdf-button" hidden>PDF開示</button><button id="comparisonButton" class="comparison-button" disabled>比較分析 0件</button><span id="dataset" class="dataset">読込中</span><button id="export">表示CSV</button></div></header>
+  <header><div><h1>J-REIT Intelligence</h1><p>Property Intelligence Platform — J-REIT Module v0.19</p></div><div class="header-actions"><span id="engineStatus" class="engine-status" hidden></span><button id="changeButton" class="change-button" hidden>差分確認</button><button id="qualityButton" class="quality-button" hidden>品質確認</button><button id="pdfStatus" class="pdf-button" hidden>PDF開示</button><button id="comparisonButton" class="comparison-button" disabled>比較分析 0件</button><span id="dataset" class="dataset">読込中</span><button id="export">表示CSV</button></div></header>
   <main>
     <aside>
       <input id="search" type="search" placeholder="物件名・住所を検索">
@@ -115,6 +116,7 @@
   </dialog>
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <script src="analysis-math.js" defer></script>
+  <script src="chart-renderer.js" defer></script>
   <script src="workspace-utils.js" defer></script>
   <script src="map-analysis.js" defer></script>
   <script src="spatial-analysis.js" defer></script>

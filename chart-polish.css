@@ -1,0 +1,43 @@
+.analysis.history-card {
+  margin-left: -2px;
+  margin-right: -2px;
+  padding: 16px 14px 14px;
+  border: 1px solid #dbe3ee;
+  border-radius: 12px;
+  background: #fff;
+}
+
+.chart-help {
+  margin-top: 8px;
+  line-height: 1.5;
+}
+
+.history-chart-stage {
+  position: relative;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  overflow: hidden;
+  border-top: 1px solid #f1f5f9;
+}
+
+.history-chart-stage canvas {
+  display: block;
+  width: 100%;
+  max-width: 100%;
+  height: 230px;
+}
+
+.history-chart-base {
+  position: relative;
+  z-index: 1;
+  pointer-events: none;
+}
+
+.history-chart-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  cursor: crosshair;
+  touch-action: none;
+}
