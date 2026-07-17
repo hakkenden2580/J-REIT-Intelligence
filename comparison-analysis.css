@@ -20,13 +20,20 @@
 .series-mode-status{margin:0 0 10px;color:#475569;font-size:10px;line-height:1.5}
 .comparison-future{display:flex;gap:7px;flex-wrap:wrap;margin:2px 0 14px}
 .comparison-future span{border:1px dashed #cbd5e1;color:#64748b;border-radius:999px;padding:5px 9px;font-size:10px}
-.comparison-legend{display:flex;gap:12px 18px;flex-wrap:wrap;max-height:86px;overflow:auto;margin:5px 0 10px;padding-right:5px;font-size:11px}
-.comparison-legend span{display:inline-flex;align-items:center;gap:6px}
+.comparison-legend{display:flex;gap:10px 16px;flex-wrap:wrap;max-height:76px;overflow:auto;margin:12px 0 7px;padding:8px 0;border-top:1px solid #edf1f6;font-size:10px;color:#475569}
+.comparison-legend span{display:inline-flex;align-items:center;gap:6px;max-width:260px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .comparison-swatch{width:11px;height:11px;border-radius:50%;display:inline-block}
-.comparison-swatch.average{border-radius:0;height:3px;width:16px;background:#0f172a}
-.comparison-chart-card{border:1px solid #e2e8f0;border-radius:12px;padding:12px;background:#fff}
-.comparison-chart-stage{position:relative}
-.comparison-chart-stage canvas{cursor:crosshair;touch-action:none}
+.comparison-swatch.average{border-radius:0;height:3px;width:18px;background:#2457e6}
+.comparison-chart-card{min-width:0;border:1px solid #dbe3ee;border-radius:14px;padding:16px 18px 14px;background:#fff;box-shadow:0 1px 2px #0f172a08}
+.chart-card-heading{display:flex;align-items:flex-start;justify-content:space-between;gap:14px}
+.chart-card-heading h3{margin:3px 0 0;font-size:16px}
+.chart-card-notes{display:flex;gap:7px;flex-wrap:wrap;justify-content:flex-end}
+.chart-card-notes span{display:inline-flex;align-items:center;gap:5px;padding:5px 8px;border-radius:999px;background:#f1f5f9;color:#64748b;font-size:9px;font-weight:700}
+.gap-sample{width:17px;border-top:2px dashed #64748b}
+.comparison-chart-stage{position:relative;width:100%;max-width:100%;min-width:0;overflow:hidden;border-top:1px solid #f1f5f9}
+.comparison-chart-stage canvas{display:block;width:100%;max-width:100%;height:430px}
+.comparison-chart-base{position:relative;z-index:1;pointer-events:none}
+.comparison-chart-overlay{position:absolute;inset:0;z-index:2;cursor:crosshair;touch-action:none}
 .comparison-chart-tooltip{position:absolute;z-index:4;min-width:190px;max-width:310px;max-height:245px;overflow:auto;padding:10px 11px;border-radius:10px;background:#0f172a;color:#fff;box-shadow:0 12px 30px #0f172a40;pointer-events:none;font-size:10px}
 .comparison-chart-tooltip>b{display:block;margin-bottom:7px;font-size:12px}
 .comparison-chart-tooltip>div{display:grid;grid-template-columns:9px minmax(0,1fr) auto;align-items:center;gap:6px;padding:3px 0}
@@ -35,7 +42,6 @@
 .comparison-chart-tooltip>div strong{font-size:10px;white-space:nowrap}
 .comparison-chart-tooltip>div small{grid-column:2/-1;color:#94a3b8}
 .comparison-chart-tooltip .tooltip-average{padding-bottom:7px;margin-bottom:4px;border-bottom:1px solid #334155}
-#comparisonChart{display:block;width:100%;height:390px}
 .comparison-table{margin-top:18px}
 .comparison-table h3{font-size:14px;margin:0 0 8px}
 .comparison-table table{width:100%;border-collapse:collapse;font-size:12px}
@@ -55,7 +61,7 @@
 @media(max-width:900px){
   .comparison-dialog{width:calc(100vw - 16px);height:calc(100vh - 16px)}
   #comparisonContent{padding:14px}
-  #comparisonChart{height:310px}
+  .comparison-chart-stage canvas{height:340px}
   .comparison-intro{display:block}
   .comparison-count{display:inline-block;margin-top:8px}
   .comparison-control-row{display:block}
@@ -64,6 +70,9 @@
 @media(max-width:600px){
   .comparison-dialog-heading h2{font-size:16px}
   .comparison-dialog-actions .secondary-button{display:none}
-  #comparisonChart{height:270px}
+  .comparison-chart-card{padding:12px 10px}
+  .chart-card-heading{display:block}
+  .chart-card-notes{justify-content:flex-start;margin-top:8px}
+  .comparison-chart-stage canvas{height:300px}
   .comparison-button{padding:7px 9px}
 }
