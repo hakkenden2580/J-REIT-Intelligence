@@ -57,6 +57,7 @@ def evaluate_dataset(payload: dict[str, Any], *, import_run_id: str | None = Non
     missing_coordinates: list[str] = []
     out_of_range: list[dict[str, Any]] = []
     area_mismatches: list[str] = []
+    evidence_mismatches: list[dict[str, Any]] = []
     metric_counts: dict[str, dict[str, int]] = {
         field: {"available": 0, "evidence_complete": 0} for field in METRICS
     }
@@ -71,11 +72,33 @@ def evaluate_dataset(payload: dict[str, Any], *, import_run_id: str | None = Non
             value = record.get(field)
             if value is None or isinstance(value, bool) or not isinstance(value, (int, float)):
                 continue
+            evidence_item = evidence.get(field)
             metric_counts[field]["available"] += 1
             by_reit[reit]["numeric_values"] += 1
-            if _evidence_complete(evidence.get(field)):
+            if _evidence_complete(evidence_item):
                 metric_counts[field]["evidence_complete"] += 1
                 by_reit[reit]["evidence_complete"] += 1
+                expected_metric_code, expected_unit = METRICS[field]
+                evidence_value = evidence_item.get("value")
+                value_matches = (
+                    isinstance(evidence_value, (int, float))
+                    and not isinstance(evidence_value, bool)
+                    and abs(float(evidence_value) - float(value)) <= 1e-9
+                )
+                if (
+                    evidence_item.get("metric_code") != expected_metric_code
+                    or evidence_item.get("unit") != expected_unit
+                    or not value_matches
+                ):
+                    evidence_mismatches.append({
+                        "property_id": property_id,
+                        "field": field,
+                        "expected_metric_code": expected_metric_code,
+                        "actual_metric_code": evidence_item.get("metric_code"),
+                        "expected_unit": expected_unit,
+                        "actual_unit": evidence_item.get("unit"),
+                        "value_matches": value_matches,
+                    })
             if field == "occupancy" and not 0 <= value <= 100:
                 out_of_range.append({"property_id": property_id, "metric": field, "value": value})
             elif field in PERCENT_METRICS[1:] and not 0 < value <= 20:
@@ -110,7 +133,14 @@ def evaluate_dataset(payload: dict[str, Any], *, import_run_id: str | None = Non
     numeric_values = sum(value["available"] for value in metric_counts.values())
     evidence_complete = sum(value["evidence_complete"] for value in metric_counts.values())
     evidence_missing = numeric_values - evidence_complete
-    errors = len(duplicates) + len(core_missing) + len(invalid_coordinates) + len(out_of_range) + evidence_missing
+    errors = (
+        len(duplicates)
+        + len(core_missing)
+        + len(invalid_coordinates)
+        + len(out_of_range)
+        + evidence_missing
+        + len(evidence_mismatches)
+    )
     warnings = len(missing_coordinates) + len(area_mismatches)
     status = "failed" if errors else "warning" if warnings else "passed"
 
@@ -134,6 +164,7 @@ def evaluate_dataset(payload: dict[str, Any], *, import_run_id: str | None = Non
         {"code": "required_fields", "severity": "error", "status": "passed" if not core_missing else "failed", "count": len(core_missing), "message": "必須項目の欠損"},
         {"code": "numeric_ranges", "severity": "error", "status": "passed" if not out_of_range else "failed", "count": len(out_of_range), "message": "数値範囲の異常"},
         {"code": "evidence_completeness", "severity": "error", "status": "passed" if not evidence_missing else "failed", "count": evidence_missing, "message": "Evidenceが不完全な数値"},
+        {"code": "evidence_consistency", "severity": "error", "status": "passed" if not evidence_mismatches else "failed", "count": len(evidence_mismatches), "message": "数値とEvidenceの指標・単位・値が不一致"},
         {"code": "coordinates", "severity": "warning", "status": "passed" if not (missing_coordinates or invalid_coordinates) else "warning", "count": len(missing_coordinates) + len(invalid_coordinates), "message": "座標の欠損または異常"},
         {"code": "leased_area_consistency", "severity": "warning", "status": "passed" if not area_mismatches else "warning", "count": len(area_mismatches), "message": "賃貸面積が賃貸可能面積を超過"},
     ]
@@ -164,5 +195,6 @@ def evaluate_dataset(payload: dict[str, Any], *, import_run_id: str | None = Non
             "missing_coordinates": missing_coordinates[:20],
             "out_of_range": out_of_range[:20],
             "area_mismatches": area_mismatches[:20],
+            "evidence_mismatches": evidence_mismatches[:20],
         },
     }

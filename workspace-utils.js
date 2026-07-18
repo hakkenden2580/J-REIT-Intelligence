@@ -33,6 +33,7 @@
       (!filters.region||property.region===filters.region)&&
       (!query||`${property.name||""} ${property.address||""} ${property.reit||""}`.toLocaleLowerCase("ja").includes(query))&&
       inRange(property.cap,filters.capMin,filters.capMax)&&
+      inRange(property.terminal_cap_rate,filters.terminalCapMin,filters.terminalCapMax)&&
       inRange(property.occupancy,filters.occupancyMin,filters.occupancyMax)&&
       inRange(property.price,filters.priceMin,filters.priceMax)&&
       inRange(property.leasable_area,filters.areaMin,filters.areaMax)

@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
-  <title>J-REIT Intelligence v0.21</title>
+  <title>J-REIT Intelligence v0.22</title>
   <meta name="description" content="J-REIT物件の地図、時系列分析、類似物件比較を行うProperty Intelligence Platformの試作モジュール">
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
   <link rel="stylesheet" href="styles.css">
@@ -16,7 +16,7 @@
   <link rel="stylesheet" href="chart-polish.css">
 </head>
 <body>
-  <header><div><h1>J-REIT Intelligence</h1><p>Property Intelligence Platform — J-REIT Module v0.21</p></div><div class="header-actions"><span id="engineStatus" class="engine-status" hidden></span><button id="changeButton" class="change-button" hidden>差分確認</button><button id="qualityButton" class="quality-button" hidden>品質確認</button><button id="pdfStatus" class="pdf-button" hidden>PDF開示</button><button id="comparisonButton" class="comparison-button" disabled>比較分析 0件</button><span id="dataset" class="dataset">読込中</span><button id="export">表示CSV</button></div></header>
+  <header><div><h1>J-REIT Intelligence</h1><p>Property Intelligence Platform — J-REIT Module v0.22</p></div><div class="header-actions"><span id="engineStatus" class="engine-status" hidden></span><button id="changeButton" class="change-button" hidden>差分確認</button><button id="qualityButton" class="quality-button" hidden>品質確認</button><button id="pdfStatus" class="pdf-button" hidden>PDF開示</button><button id="comparisonButton" class="comparison-button" disabled>比較分析 0件</button><span id="dataset" class="dataset">読込中</span><button id="export">表示CSV</button></div></header>
   <main>
     <aside>
       <input id="search" type="search" placeholder="物件名・住所を検索">
@@ -26,6 +26,7 @@
       <details class="advanced-filters">
         <summary>詳細条件</summary>
         <div class="range-filter"><label>鑑定CR（%）</label><div><input id="capMin" type="number" inputmode="decimal" step="0.1" placeholder="下限"><span>〜</span><input id="capMax" type="number" inputmode="decimal" step="0.1" placeholder="上限"></div></div>
+        <div class="range-filter"><label>最終還元TCR（%）</label><div><input id="terminalCapMin" type="number" inputmode="decimal" step="0.1" placeholder="下限"><span>〜</span><input id="terminalCapMax" type="number" inputmode="decimal" step="0.1" placeholder="上限"></div></div>
         <div class="range-filter"><label>稼働率（%）</label><div><input id="occupancyMin" type="number" inputmode="decimal" step="0.1" placeholder="下限"><span>〜</span><input id="occupancyMax" type="number" inputmode="decimal" step="0.1" placeholder="上限"></div></div>
         <div class="range-filter"><label>取得価格（百万円）</label><div><input id="priceMin" type="number" inputmode="numeric" step="100" placeholder="下限"><span>〜</span><input id="priceMax" type="number" inputmode="numeric" step="100" placeholder="上限"></div></div>
         <div class="range-filter"><label>賃貸可能面積（㎡）</label><div><input id="areaMin" type="number" inputmode="numeric" step="100" placeholder="下限"><span>〜</span><input id="areaMax" type="number" inputmode="numeric" step="100" placeholder="上限"></div></div>
@@ -34,6 +35,8 @@
           <option value="name-asc">物件名（昇順）</option>
           <option value="cap-asc">鑑定CR（低い順）</option>
           <option value="cap-desc">鑑定CR（高い順）</option>
+          <option value="terminal_cap_rate-asc">最終還元TCR（低い順）</option>
+          <option value="terminal_cap_rate-desc">最終還元TCR（高い順）</option>
           <option value="price-desc">取得価格（高い順）</option>
           <option value="price-asc">取得価格（低い順）</option>
           <option value="occupancy-desc">稼働率（高い順）</option>
@@ -67,6 +70,7 @@
           <button id="toggleBoxSelection" class="secondary-button" type="button" aria-pressed="false">範囲をドラッグ選択</button>
           <button id="clearBoxSelection" class="secondary-button" type="button" hidden>選択枠を消す</button>
           <button id="selectVisible" class="secondary-button" type="button">表示中から比較選択</button>
+          <label class="map-yield-control" for="mapYieldMetric"><span>地図指標</span><select id="mapYieldMetric"><option value="cap">直接還元CR</option><option value="terminal_cap_rate">最終還元TCR</option></select></label>
           <span id="mapActionStatus">拡大するとCAP数値を表示</span>
         </div>
         <section id="radiusPanel" class="radius-panel" hidden aria-label="半径検索">
