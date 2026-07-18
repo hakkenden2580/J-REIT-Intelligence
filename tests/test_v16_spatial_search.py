@@ -48,7 +48,7 @@ console.log(JSON.stringify({
         html = (ROOT / "index.html").read_text(encoding="utf-8")
         javascript = (ROOT / "app.js").read_text(encoding="utf-8")
         css = (ROOT / "spatial-analysis.css").read_text(encoding="utf-8")
-        self.assertIn("J-REIT Intelligence v0.21", html)
+        self.assertIn("J-REIT Intelligence v0.22", html)
         for control_id in (
             "toggleRadiusSearch", "radiusPanel", "radiusKm",
             "radiusFromCenter", "radiusPick", "clearRadius", "radiusStatus",

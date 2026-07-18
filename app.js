@@ -1,4 +1,4 @@
-let properties=[];let visible=[];let selected=null;let pdfCatalog=null;let comparisonMetric="cap";let comparisonSeriesMode="auto";let workspaceView="map";let mapBoundsFilter=null;let radiusFilter=null;let radiusCircle=null;let radiusHandle=null;let radiusPickMode=false;let boxSelectionMode=false;let boxStart=null;let selectionBox=null;
+let properties=[];let visible=[];let selected=null;let pdfCatalog=null;let comparisonMetric="cap";let comparisonSeriesMode="auto";let mapYieldMetric="cap";let workspaceView="map";let mapBoundsFilter=null;let radiusFilter=null;let radiusCircle=null;let radiusHandle=null;let radiusPickMode=false;let boxSelectionMode=false;let boxStart=null;let selectionBox=null;
 const comparisonIds=new Set(),comparisonLimit=50;
 const individualSeriesLimit=8;
 const comparisonStorageKey="pip-comparison-ids-v0.14",workspaceViewStorageKey="pip-workspace-view-v0.14";
@@ -15,20 +15,23 @@ const radiusText=n=>Number(n).toLocaleString("ja-JP",{maximumFractionDigits:1});
 const esc=s=>String(s??"").replace(/[&<>'"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;","'":"&#39;",'"':"&quot;"}[c]));
 const safeUrl=value=>{try{const url=new URL(String(value||""));return ["https:","http:"].includes(url.protocol)?url.href:""}catch{return""}};
 const reitFilter=document.querySelector("#reit"),typeFilter=document.querySelector("#type"),region=document.querySelector("#region");
-const numericFilterIds=["capMin","capMax","occupancyMin","occupancyMax","priceMin","priceMax","areaMin","areaMax"];
+const numericFilterIds=["capMin","capMax","terminalCapMin","terminalCapMax","occupancyMin","occupancyMax","priceMin","priceMax","areaMin","areaMax"];
 const metrics={
   cap:{label:"直接還元利回り（CR）",short:"CR",format:pct,color:"#2563eb"},
+  terminal_cap_rate:{label:"最終還元利回り（TCR）",short:"TCR",format:pct,color:"#0f766e"},
   noi:{label:"NOI（当期）",short:"NOI",format:yen,color:"#059669"},
   occupancy:{label:"稼働率",short:"稼働率",format:pct,color:"#7c3aed"},
   appraisal:{label:"鑑定評価額",short:"鑑定評価額",format:yen,color:"#dc6b19"}
 };
 const evidenceLabels={price:"取得価格",book_value:"期末簿価",appraisal:"鑑定評価額",leasable_area:"賃貸可能面積",leased_area:"賃貸面積",tenants:"テナント数",occupancy:"稼働率",cap:"直接還元利回り",discount_rate:"割引率",terminal_cap_rate:"最終還元利回り",noi:"NOI"};
-const checkLabels={unique_property_id:"物件ID重複",required_fields:"必須項目",numeric_ranges:"数値範囲",evidence_completeness:"Evidence",coordinates:"座標",leased_area_consistency:"面積整合"};
+const checkLabels={unique_property_id:"物件ID重複",required_fields:"必須項目",numeric_ranges:"数値範囲",evidence_completeness:"Evidence完全性",evidence_consistency:"数値–Evidence整合性",coordinates:"座標",leased_area_consistency:"面積整合"};
 const pdfMetricLabels={rental_income_million_yen:"不動産賃貸収入",occupancy_rate_percent:"期中平均稼働率",portfolio_noi_million_yen:"賃貸NOI",acquisition_price_million_yen:"取得価格",disposal_price_million_yen:"譲渡価格",noi_yield_percent:"NOI利回り"};
 const eventLabels={acquisition_planned:"取得予定",additional_acquisition_planned:"追加取得予定",acquisition:"取得",disposal_planned:"譲渡予定"};
 
 function renderCapLegend(){
-  document.querySelector("#capLegend").innerHTML=`<b>鑑定CR（%）</b>${PIPMapAnalysis.bands.map(band=>`<span><i style="background:${band.unknown?"repeating-linear-gradient(135deg,#94a3b8 0 3px,#cbd5e1 3px 6px)":band.color}"></i>${esc(band.label)}</span>`).join("")}`;
+  const label=mapYieldMetric==="terminal_cap_rate"?"最終還元TCR（%）":"鑑定CR（%）";
+  document.querySelector("#capLegend").setAttribute("aria-label",`${label}の色分け凡例`);
+  document.querySelector("#capLegend").innerHTML=`<b>${label}</b>${PIPMapAnalysis.bands.map(band=>`<span><i style="background:${band.unknown?"repeating-linear-gradient(135deg,#94a3b8 0 3px,#cbd5e1 3px 6px)":band.color}"></i>${esc(band.label)}</span>`).join("")}`;
 }
 
 function currentMapBounds(){
@@ -48,7 +51,8 @@ function updateMapAnalysisControls(message=""){
   clearBoxButton.hidden=!selectionBox;
   selectButton.disabled=!visible.length||comparisonIds.size>=comparisonLimit;
   const activeFilters=[mapBoundsFilter?"地図範囲":"",radiusFilter?`半径${radiusText(radiusFilter.radiusKm)}km`:""].filter(Boolean);
-  status.textContent=message||(activeFilters.length?`${activeFilters.join("＋")}・${visible.length.toLocaleString("ja-JP")}件`:(map.getZoom()>=9?"鑑定CRを数値表示":"拡大すると鑑定CRを数値表示"));
+  const yieldLabel=mapYieldMetric==="terminal_cap_rate"?"最終還元TCR":"鑑定CR";
+  status.textContent=message||(activeFilters.length?`${activeFilters.join("＋")}・${visible.length.toLocaleString("ja-JP")}件`:(map.getZoom()>=9?`${yieldLabel}を数値表示`:`拡大すると${yieldLabel}を数値表示`));
   updateRadiusControls();
 }
 
@@ -56,11 +60,11 @@ function renderMapMarkers(){
   markers.clearLayers();
   const compact=map.getZoom()<9;
   visible.filter(property=>property.lat!=null&&property.lng!=null).forEach(property=>{
-    const band=PIPMapAnalysis.bandFor(property.cap),unknown=Boolean(band.unknown),active=selected?.id===property.id;
+    const yieldValue=property[mapYieldMetric],band=PIPMapAnalysis.bandFor(yieldValue),unknown=Boolean(band.unknown),active=selected?.id===property.id;
     const markerClass=["cap-marker",compact?"compact":"",unknown?"unknown":"",active?"selected":""].filter(Boolean).join(" ");
-    const label=unknown?"—":Number(property.cap).toFixed(1);
+    const label=unknown?"—":Number(yieldValue).toFixed(1),yieldLabel=mapYieldMetric==="terminal_cap_rate"?"TCR":"CR";
     const icon=L.divIcon({className:"cap-marker-shell",html:`<span class="${markerClass}" style="--cap-color:${band.color}">${compact?"":label}</span>`,iconSize:compact?[35,25]:[48,32],iconAnchor:[24,28]});
-    L.marker([property.lat,property.lng],{icon}).addTo(markers).bindTooltip(`${esc(property.name)}・CR ${pct(property.cap)}`).on("click",()=>selectProperty(property));
+    L.marker([property.lat,property.lng],{icon}).addTo(markers).bindTooltip(`${esc(property.name)}・${yieldLabel} ${pct(yieldValue)}`).on("click",()=>selectProperty(property));
   });
 }
 
@@ -282,6 +286,50 @@ function sourcePanel(p){
   return`<div class="source"><b>出典・Evidence</b><p>${esc(src.document||src.title)}・${esc(src.period)}</p><p>取得日時：${esc(retrieved)}<br>SHA-256：<code>${esc((src.sha256||"").slice(0,16))}${src.sha256?"…":"未記録"}</code></p>${url?`<a href="${esc(url)}" target="_blank" rel="noopener">公式IRライブラリを開く</a>`:""}<details><summary>数値ごとの抽出位置</summary><ul>${entries||legacy||"<li>位置情報なし</li>"}</ul></details></div>`;
 }
 
+function periodSortKey(period,index=0){
+  return period?.as_of_date||String(period?.period_no??index).padStart(8,"0");
+}
+
+function sortedPeriods(p){
+  return[...(p.periods||[])].sort((a,b)=>periodSortKey(a).localeCompare(periodSortKey(b)));
+}
+
+function latestMetricPeriod(p,metricKey){
+  return[...sortedPeriods(p)].reverse().find(period=>period?.[metricKey]!=null)||null;
+}
+
+function metricEvidence(p,period,metricKey){
+  return period?.evidence?.[metricKey]||p.evidence?.[metricKey]||null;
+}
+
+function evidencePosition(item){
+  const locator=item?.locator||{};
+  return[
+    locator.page?`PDF p.${locator.page}`:"",
+    locator.sheet?`Sheet: ${locator.sheet}`:"",
+    locator.cell||locator.cell_range?`Cell: ${locator.cell||locator.cell_range}`:"",
+  ].filter(Boolean).join(" / ")||"抽出位置の記録なし";
+}
+
+function evidenceCard(p,period,metricKey,{compact=false}={}){
+  const item=metricEvidence(p,period,metricKey),source=period?.source||p.source||{};
+  const label=evidenceLabels[metricKey]||metrics[metricKey]?.label||metricKey;
+  const value=period?.[metricKey]??p[metricKey];
+  const retrieved=item?.retrieved_at||source.retrieved_at;
+  const parser=item?.extraction?.parser;
+  const review=reviewLabel(item?.review?.status);
+  if(!item)return`<div class="metric-evidence-card unavailable"><div><span>${esc(label)}</span><b>${metrics[metricKey]?.format(value)||text(value)}</b></div><p>この数値の抽出位置は未記録です。値を推測・補完せず、原資料確認が必要な項目として扱います。</p></div>`;
+  return`<div class="metric-evidence-card${compact?" compact":""}"><div><span>${esc(label)}</span><b>${metrics[metricKey]?.format(value)||text(value)}</b><em>Evidenceあり</em></div><dl><div><dt>開示時点</dt><dd>${esc(period?.as_of_date||period?.period||"最新")}</dd></div><div><dt>抽出位置</dt><dd><code>${esc(evidencePosition(item))}</code></dd></div><div><dt>取得日時</dt><dd>${esc(retrieved?new Date(retrieved).toLocaleString("ja-JP"):"未記録")}</dd></div><div><dt>抽出方法</dt><dd>${esc(parser||"未記録")}・${esc(review)}</dd></div></dl></div>`;
+}
+
+function valuationContext(p){
+  const periods=sortedPeriods(p);
+  const current=[...periods].reverse().find(period=>period.cap!=null||period.terminal_cap_rate!=null)||{};
+  const cap=current.cap??p.cap,terminal=current.terminal_cap_rate??p.terminal_cap_rate;
+  const spread=cap!=null&&terminal!=null?Number(terminal)-Number(cap):null;
+  return{period:current,cap,terminal,spread};
+}
+
 function persistComparison(){
   try{localStorage.setItem(comparisonStorageKey,JSON.stringify([...comparisonIds]))}catch{}
 }
@@ -300,7 +348,7 @@ async function loadData(){
   let payload;
   try{const res=await fetch("runtime-data/properties.json",{cache:"no-store"});if(!res.ok)throw new Error();payload=await res.json()}
   catch{payload=await (await fetch("data/demo-properties.json")).json()}
-  properties=payload.properties.map(p=>({...p,periods:p.periods?.length?p.periods:[{period_no:null,period:"最新",as_of_date:null,cap:p.cap,noi:p.noi,occupancy:p.occupancy,appraisal:p.appraisal}]}));
+  properties=payload.properties.map(p=>({...p,periods:p.periods?.length?p.periods:[{period_no:null,period:"最新",as_of_date:null,cap:p.cap,terminal_cap_rate:p.terminal_cap_rate,discount_rate:p.discount_rate,noi:p.noi,occupancy:p.occupancy,appraisal:p.appraisal,evidence:p.evidence||{},source:p.source||null}]}));
   await supplementPromise;
   restoreWorkspaceState();
   visible=[...properties];
@@ -324,7 +372,7 @@ function scaledDifference(a,b,scale,weight){if(a==null||b==null)return weight*.5
 function ratioDifference(a,b,weight){if(!a||!b)return weight*.5;return Math.min(Math.abs(Math.log(a/b))/Math.log(4),1)*weight}
 function comparableScore(base,candidate){
   const distance=haversine(base,candidate);
-  const penalty=scaledDifference(distance,0,50,35)+ratioDifference(base.leasable_area,candidate.leasable_area,25)+ratioDifference(base.price,candidate.price,15)+scaledDifference(base.cap,candidate.cap,1.5,15)+scaledDifference(base.occupancy,candidate.occupancy,10,10);
+  const penalty=scaledDifference(distance,0,50,30)+ratioDifference(base.leasable_area,candidate.leasable_area,20)+ratioDifference(base.price,candidate.price,10)+scaledDifference(base.cap,candidate.cap,1.5,15)+scaledDifference(base.terminal_cap_rate,candidate.terminal_cap_rate,1.5,15)+scaledDifference(base.occupancy,candidate.occupancy,10,10);
   return{property:candidate,score:Math.max(0,Math.round(100-penalty)),distance};
 }
 function comparablesFor(p){return properties.filter(x=>x.id!==p.id&&x.type===p.type).map(x=>comparableScore(p,x)).sort((a,b)=>b.score-a.score).slice(0,5)}
@@ -332,16 +380,18 @@ function comparablesFor(p){return properties.filter(x=>x.id!==p.id&&x.type===p.t
 function selectProperty(p){
   if(!p)return;
   selected=p;
-  const latestPeriod=[...(p.periods||[])].sort((a,b)=>(a.as_of_date||String(a.period_no||"")).localeCompare(b.as_of_date||String(b.period_no||""))).at(-1)||{};
+  const latestPeriod=sortedPeriods(p).at(-1)||{};
   const periodLabel=latestPeriod.period||p.period||(latestPeriod.as_of_date?String(latestPeriod.as_of_date).slice(0,10):"最新");
   const geocodeQuality={verified:"確認済み",manual:"手動確認",automatic:"自動取得",unknown:"未確認"}[p.geocode?.quality]||p.geocode?.quality||"未記録";
   const evidenceCount=Object.keys(latestPeriod.evidence||p.evidence||{}).length;
   const defaultMetric=Object.keys(metrics).find(key=>p.periods.some(period=>period[key]!=null))||"appraisal";
   const metricOptions=Object.entries(metrics).map(([key,item])=>`<option value="${key}"${key===defaultMetric?" selected":""}>${item.label}</option>`).join("");
-  const comparableCards=comparablesFor(p).map(item=>`<button class="comparable" data-property-id="${esc(item.property.id)}"><span class="score">類似度 ${item.score}</span><b>${esc(item.property.name)}</b><small>${item.distance==null?"距離不明":`${item.distance.toFixed(1)}km`}・CR ${pct(item.property.cap)}・${area(item.property.leasable_area)}</small></button>`).join("");
+  const comparableCards=comparablesFor(p).map(item=>`<button class="comparable" data-property-id="${esc(item.property.id)}"><span class="score">類似度 ${item.score}</span><b>${esc(item.property.name)}</b><small>${item.distance==null?"距離不明":`${item.distance.toFixed(1)}km`}・CR ${pct(item.property.cap)}・TCR ${pct(item.property.terminal_cap_rate)}・${area(item.property.leasable_area)}</small></button>`).join("");
   const inComparison=comparisonIds.has(p.id);
-  document.querySelector("#detail").innerHTML=`<section class="property-detail-hero"><div><span class="eyebrow">PROPERTY DETAIL</span><h2>${esc(p.name)}</h2><div class="address">${esc(p.address)}</div><div class="property-badges"><span class="pill">${esc(p.type)}</span><span class="pill neutral">${esc(p.reit)}</span><span class="pill neutral">座標：${esc(geocodeQuality)}</span></div></div><div class="detail-period"><span>最新開示</span><b>${esc(periodLabel)}</b></div></section><div class="detail-actions"><button id="detailCompare" class="detail-compare-button${inComparison?" selected":""}">${inComparison?"比較対象から外す":"比較分析に追加"}</button>${p.lat!=null&&p.lng!=null?'<button id="detailRadiusSearch" class="detail-spatial-button">この物件を中心に半径検索</button>':""}</div><section class="detail-section"><div class="detail-section-heading"><div><span class="eyebrow">KEY METRICS</span><h3>最新指標</h3></div><span class="evidence-count">Evidence ${evidenceCount}項目</span></div><div class="metrics"><div class="metric primary"><span>直接還元利回り（CR）</span><b>${pct(p.cap)}</b></div><div class="metric primary"><span>鑑定評価額</span><b>${yen(p.appraisal)}</b></div><div class="metric"><span>稼働率</span><b>${pct(p.occupancy)}</b></div><div class="metric"><span>NOI（当期）</span><b>${yen(p.noi)}</b></div><div class="metric"><span>取得価格</span><b>${yen(p.price)}</b></div><div class="metric"><span>期末簿価</span><b>${yen(p.book_value)}</b></div></div></section><section class="detail-section"><div class="detail-section-heading"><div><span class="eyebrow">OVERVIEW</span><h3>物件概要</h3></div></div><dl class="property-overview"><div><dt>投資法人</dt><dd>${esc(p.reit)}</dd></div><div><dt>証券コード</dt><dd>${esc(p.reit_code||"—")}</dd></div><div><dt>アセットタイプ</dt><dd>${esc(p.type||"—")}</dd></div><div><dt>地域</dt><dd>${esc(p.region||"—")}</dd></div><div><dt>賃貸可能面積</dt><dd>${area(p.leasable_area)}</dd></div><div><dt>賃貸面積</dt><dd>${area(p.leased_area)}</dd></div><div><dt>テナント数</dt><dd>${text(p.tenants)}</dd></div><div><dt>割引率</dt><dd>${pct(p.discount_rate)}</dd></div><div><dt>最終還元利回り</dt><dd>${pct(p.terminal_cap_rate)}</dd></div><div><dt>座標</dt><dd>${p.lat==null||p.lng==null?"—":`${Number(p.lat).toFixed(5)}, ${Number(p.lng).toFixed(5)}`}</dd></div></dl></section>${pdfEventPanel(p)}<section class="analysis history-card"><div class="analysis-heading"><div><span class="eyebrow">HISTORY</span><h3>物件データの推移</h3></div><select id="historyMetric" aria-label="推移指標">${metricOptions}</select></div><div class="history-chart-stage"><canvas id="historyChart" class="history-chart-base" aria-label="物件データ推移グラフ"></canvas><canvas class="history-chart-overlay" aria-hidden="true"></canvas><div id="historyTooltip" class="history-chart-tooltip" hidden></div></div><p class="chart-help">グラフをなぞると、開示時点と正確な値を確認できます。点線区間は未開示期間で、値は推定していません。</p><div id="historySummary"></div></section><section class="analysis"><div class="analysis-heading"><div><span class="eyebrow">COMPARABLES</span><h3>類似物件 上位5件</h3></div></div><p class="method">距離35%、面積25%、取得価格15%、CR15%、稼働率10%で算出</p><div class="comparable-list">${comparableCards||'<p class="empty">比較できる物件がありません。</p>'}</div></section>${sourcePanel(p)}`;
+  const valuation=valuationContext(p),spreadText=valuation.spread==null?"—":`${valuation.spread>=0?"+":""}${valuation.spread.toFixed(1)}pt`;
+  document.querySelector("#detail").innerHTML=`<section class="property-detail-hero"><div><span class="eyebrow">PROPERTY DETAIL</span><h2>${esc(p.name)}</h2><div class="address">${esc(p.address)}</div><div class="property-badges"><span class="pill">${esc(p.type)}</span><span class="pill neutral">${esc(p.reit)}</span><span class="pill neutral">座標：${esc(geocodeQuality)}</span></div></div><div class="detail-period"><span>最新開示</span><b>${esc(periodLabel)}</b></div></section><div class="detail-actions"><button id="detailCompare" class="detail-compare-button${inComparison?" selected":""}">${inComparison?"比較対象から外す":"比較分析に追加"}</button>${p.lat!=null&&p.lng!=null?'<button id="detailRadiusSearch" class="detail-spatial-button">この物件を中心に半径検索</button>':""}</div><section class="detail-section valuation-section"><div class="detail-section-heading"><div><span class="eyebrow">VALUATION YIELDS</span><h3>還元利回り</h3></div><span class="evidence-count">Evidence ${evidenceCount}項目</span></div><div class="valuation-metrics"><button class="metric primary evidence-metric active" data-evidence-metric="cap"><span>直接還元利回り（CR）</span><b>${pct(valuation.cap)}</b><small>単年度の直接還元法</small></button><button class="metric terminal evidence-metric" data-evidence-metric="terminal_cap_rate"><span>最終還元利回り（TCR）</span><b>${pct(valuation.terminal)}</b><small>保有期間末の復帰価格</small></button><div class="metric derived"><span>TCR − CR スプレッド</span><b>${spreadText}</b><small>上記2指標から算出</small></div><button class="metric evidence-metric" data-evidence-metric="discount_rate"><span>割引率</span><b>${pct(p.discount_rate)}</b><small>DCFの現在価値換算</small></button></div><div id="valuationEvidence" class="valuation-evidence">${evidenceCard(p,valuation.period,"cap",{compact:true})}</div><p class="method">CRとTCRは別指標です。TCRは最終年度の純収益から復帰価格を求めるための利回りで、未開示値は「—」のまま保持します。</p></section><section class="detail-section"><div class="detail-section-heading"><div><span class="eyebrow">KEY METRICS</span><h3>最新指標</h3></div></div><div class="metrics"><div class="metric primary"><span>鑑定評価額</span><b>${yen(p.appraisal)}</b></div><div class="metric"><span>稼働率</span><b>${pct(p.occupancy)}</b></div><div class="metric"><span>NOI（当期）</span><b>${yen(p.noi)}</b></div><div class="metric"><span>取得価格</span><b>${yen(p.price)}</b></div><div class="metric"><span>期末簿価</span><b>${yen(p.book_value)}</b></div></div></section><section class="detail-section"><div class="detail-section-heading"><div><span class="eyebrow">OVERVIEW</span><h3>物件概要</h3></div></div><dl class="property-overview"><div><dt>投資法人</dt><dd>${esc(p.reit)}</dd></div><div><dt>証券コード</dt><dd>${esc(p.reit_code||"—")}</dd></div><div><dt>アセットタイプ</dt><dd>${esc(p.type||"—")}</dd></div><div><dt>地域</dt><dd>${esc(p.region||"—")}</dd></div><div><dt>賃貸可能面積</dt><dd>${area(p.leasable_area)}</dd></div><div><dt>賃貸面積</dt><dd>${area(p.leased_area)}</dd></div><div><dt>テナント数</dt><dd>${text(p.tenants)}</dd></div><div><dt>座標</dt><dd>${p.lat==null||p.lng==null?"—":`${Number(p.lat).toFixed(5)}, ${Number(p.lng).toFixed(5)}`}</dd></div></dl></section>${pdfEventPanel(p)}<section class="analysis history-card"><div class="analysis-heading"><div><span class="eyebrow">HISTORY</span><h3>物件データの推移</h3></div><select id="historyMetric" aria-label="推移指標">${metricOptions}</select></div><div class="history-chart-stage"><canvas id="historyChart" class="history-chart-base" aria-label="物件データ推移グラフ"></canvas><canvas class="history-chart-overlay" aria-hidden="true"></canvas><div id="historyTooltip" class="history-chart-tooltip" hidden></div></div><p class="chart-help">グラフをなぞると、開示時点・正確な値・Evidenceを確認できます。点線区間は未開示期間で、値は推定していません。</p><div id="historySummary"></div><div id="historyEvidence" class="history-evidence"></div></section><section class="analysis"><div class="analysis-heading"><div><span class="eyebrow">COMPARABLES</span><h3>類似物件 上位5件</h3></div></div><p class="method">距離30%、面積20%、取得価格10%、CR15%、TCR15%、稼働率10%で算出。TCR未開示の場合は中立ペナルティとし、推測しません。</p><div class="comparable-list">${comparableCards||'<p class="empty">比較できる物件がありません。</p>'}</div></section>${sourcePanel(p)}`;
   const selector=document.querySelector("#historyMetric");selector.onchange=()=>drawHistory(p,selector.value);drawHistory(p,selector.value);
+  document.querySelectorAll("[data-evidence-metric]").forEach(button=>button.onclick=()=>{const key=button.dataset.evidenceMetric,period=latestMetricPeriod(p,key);document.querySelector("#valuationEvidence").innerHTML=evidenceCard(p,period,key,{compact:true});document.querySelectorAll("[data-evidence-metric]").forEach(item=>item.classList.toggle("active",item===button))});
   document.querySelector("#detailCompare").onclick=()=>toggleComparison(p.id);
   const radiusButton=document.querySelector("#detailRadiusSearch");if(radiusButton)radiusButton.onclick=()=>{toggleRadiusPanel(true);applyRadiusFilter(p,`${p.name}中心`)};
   document.querySelectorAll(".comparable").forEach(button=>button.onclick=()=>selectProperty(properties.find(item=>item.id===button.dataset.propertyId)));
@@ -606,7 +656,9 @@ function bindHistoryInteraction(canvas,overlay){
     const index=PIPAnalysis.nearestTimelineIndex(pointerX,model.pad.left,model.plotW,model.history.length);
     drawHistoryHover(canvas,overlay,index);
     const tooltip=document.querySelector("#historyTooltip"),point=model.history[index],value=model.values[index];
-    tooltip.innerHTML=`<b>${esc(point.as_of_date||point.period||`${point.period_no||"—"}期`)}</b><span>${esc(metrics[model.metricKey].label)}</span><strong>${comparisonValue(model.metricKey,value)}</strong>`;
+    const evidence=metricEvidence(model.property,point,model.metricKey);
+    tooltip.innerHTML=`<b>${esc(point.as_of_date||point.period||`${point.period_no||"—"}期`)}</b><span>${esc(metrics[model.metricKey].label)}</span><strong>${comparisonValue(model.metricKey,value)}</strong><span>${evidence?`Evidence: ${esc(evidencePosition(evidence))}`:"Evidence: 未記録"}</span>`;
+    const evidencePanel=document.querySelector("#historyEvidence");if(evidencePanel)evidencePanel.innerHTML=evidenceCard(model.property,point,model.metricKey,{compact:true});
     tooltip.hidden=false;
     const stage=canvas.parentElement,maxLeft=Math.max(8,stage.clientWidth-tooltip.offsetWidth-8),maxTop=Math.max(8,stage.clientHeight-tooltip.offsetHeight-8);
     tooltip.style.left=`${Math.max(8,Math.min(maxLeft,event.clientX-rect.left+12))}px`;
@@ -629,7 +681,12 @@ function drawHistory(p,metricKey){
   const ctx=PIPChart.prepareCanvas(canvas,width,height,window.devicePixelRatio);
   PIPChart.prepareCanvas(overlay,width,height,window.devicePixelRatio);
   const pad={left:52,right:16,top:20,bottom:40},plotW=width-pad.left-pad.right,plotH=height-pad.top-pad.bottom;
-  if(!available.length){ctx.fillStyle="#64748b";ctx.font="13px sans-serif";ctx.fillText("この指標の履歴はありません",pad.left,90);return}
+  if(!available.length){
+    ctx.fillStyle="#64748b";ctx.font="13px sans-serif";ctx.fillText("この指標の履歴はありません",pad.left,90);
+    const summary=document.querySelector("#historySummary");if(summary)summary.innerHTML=`<p class="empty">${esc(metric.label)}の開示履歴はありません。</p>`;
+    const evidencePanel=document.querySelector("#historyEvidence");if(evidencePanel)evidencePanel.innerHTML=`<div class="metric-evidence-card unavailable"><p>${esc(metric.label)}のEvidenceはありません。</p></div>`;
+    return
+  }
   let min=Math.min(...available),max=Math.max(...available);if(min===max){min-=Math.abs(min||1)*.05;max+=Math.abs(max||1)*.05}else{const margin=(max-min)*.12;min-=margin;max+=margin}
   ctx.font="10px sans-serif";ctx.textAlign="right";ctx.textBaseline="middle";
   for(let i=0;i<4;i++){const y=pad.top+plotH*i/3,value=max-(max-min)*i/3;ctx.strokeStyle="#e2e8f0";ctx.lineWidth=1;ctx.beginPath();ctx.moveTo(pad.left,y);ctx.lineTo(width-pad.right,y);ctx.stroke();ctx.fillStyle="#64748b";ctx.fillText(metricKey==="noi"||metricKey==="appraisal"?Math.round(value).toLocaleString():value.toFixed(1),pad.left-7,y)}
@@ -648,12 +705,14 @@ function drawHistory(p,metricKey){
   const latest=[...history].reverse().find(item=>item[metricKey]!=null),previous=[...history].reverse().filter(item=>item[metricKey]!=null)[1];
   const delta=latest&&previous?latest[metricKey]-previous[metricKey]:null;
   document.querySelector("#historySummary").innerHTML=`<div class="history-summary"><div><span>最新値</span><b>${latest?metric.format(latest[metricKey]):"—"}</b></div><div><span>前期差</span><b class="${delta>0?"up":delta<0?"down":""}">${delta==null?"—":`${delta>0?"+":""}${metricKey==="noi"||metricKey==="appraisal"?`${delta.toLocaleString("ja-JP",{maximumFractionDigits:1})}百万円`:`${delta.toFixed(1)}pt`}`}</b></div><div><span>データ期間</span><b>${available.length}期</b></div></div>`;
+  const evidencePanel=document.querySelector("#historyEvidence");if(evidencePanel)evidencePanel.innerHTML=latest?evidenceCard(p,latest,metricKey,{compact:true}):`<div class="metric-evidence-card unavailable"><p>${esc(metric.label)}の開示履歴はありません。</p></div>`;
 }
 
 function currentFilters(){
   return{
     query:document.querySelector("#search").value,reit:reitFilter.value,type:typeFilter.value,region:region.value,
     capMin:document.querySelector("#capMin").value,capMax:document.querySelector("#capMax").value,
+    terminalCapMin:document.querySelector("#terminalCapMin").value,terminalCapMax:document.querySelector("#terminalCapMax").value,
     occupancyMin:document.querySelector("#occupancyMin").value,occupancyMax:document.querySelector("#occupancyMax").value,
     priceMin:document.querySelector("#priceMin").value,priceMax:document.querySelector("#priceMax").value,
     areaMin:document.querySelector("#areaMin").value,areaMax:document.querySelector("#areaMax").value,
@@ -664,8 +723,8 @@ function currentFilters(){
 function renderPropertyTable(){
   const content=document.querySelector("#propertyTable");
   if(!visible.length){content.innerHTML='<div class="analysis-empty"><div><b>条件に一致する物件がありません</b><span>検索条件を変更してください。</span></div></div>';return}
-  const rows=visible.map(property=>`<tr class="${comparisonIds.has(property.id)?"selected-row":""}"><td><input class="property-checkbox" type="checkbox" data-table-compare="${esc(property.id)}" aria-label="${esc(property.name)}を比較対象にする"${comparisonIds.has(property.id)?" checked":""}></td><td><button class="property-name-button" type="button" data-table-property="${esc(property.id)}"><b>${esc(property.name)}</b><small>${esc(property.address)}</small></button></td><td>${esc(property.reit)}</td><td>${esc(property.type)}</td><td>${yen(property.price)}</td><td>${yen(property.appraisal)}</td><td>${pct(property.cap)}</td><td>${pct(property.occupancy)}</td><td>${area(property.leasable_area)}</td><td>${yen(property.noi)}</td></tr>`).join("");
-  content.innerHTML=`<div class="table-note"><span>${visible.length.toLocaleString("ja-JP")}物件。チェックすると比較対象へ追加します。</span><span>未開示値は「—」表示</span></div><div class="property-table-wrap"><table class="property-table"><thead><tr><th>比較</th><th>物件名／住所</th><th>投資法人</th><th>用途</th><th>取得価格</th><th>鑑定評価額</th><th>鑑定CR</th><th>稼働率</th><th>賃貸可能面積</th><th>NOI</th></tr></thead><tbody>${rows}</tbody></table></div>`;
+  const rows=visible.map(property=>`<tr class="${comparisonIds.has(property.id)?"selected-row":""}"><td><input class="property-checkbox" type="checkbox" data-table-compare="${esc(property.id)}" aria-label="${esc(property.name)}を比較対象にする"${comparisonIds.has(property.id)?" checked":""}></td><td><button class="property-name-button" type="button" data-table-property="${esc(property.id)}"><b>${esc(property.name)}</b><small>${esc(property.address)}</small></button></td><td>${esc(property.reit)}</td><td>${esc(property.type)}</td><td>${yen(property.price)}</td><td>${yen(property.appraisal)}</td><td>${pct(property.cap)}</td><td>${pct(property.terminal_cap_rate)}</td><td>${pct(property.occupancy)}</td><td>${area(property.leasable_area)}</td><td>${yen(property.noi)}</td></tr>`).join("");
+  content.innerHTML=`<div class="table-note"><span>${visible.length.toLocaleString("ja-JP")}物件。チェックすると比較対象へ追加します。</span><span>未開示値は「—」表示</span></div><div class="property-table-wrap"><table class="property-table"><thead><tr><th>比較</th><th>物件名／住所</th><th>投資法人</th><th>用途</th><th>取得価格</th><th>鑑定評価額</th><th>鑑定CR</th><th>最終還元TCR</th><th>稼働率</th><th>賃貸可能面積</th><th>NOI</th></tr></thead><tbody>${rows}</tbody></table></div>`;
   content.querySelectorAll("[data-table-compare]").forEach(checkbox=>checkbox.onchange=()=>toggleComparison(checkbox.dataset.tableCompare));
   content.querySelectorAll("[data-table-property]").forEach(button=>button.onclick=()=>{setWorkspaceView("map");selectProperty(properties.find(property=>property.id===button.dataset.tableProperty))});
 }
@@ -747,6 +806,7 @@ document.querySelector("#radiusKm").onchange=()=>{if(radiusFilter){renderRadiusO
 document.querySelector("#toggleBoxSelection").onclick=()=>setBoxSelectionMode(!boxSelectionMode);
 document.querySelector("#clearBoxSelection").onclick=clearSelectionBox;
 document.querySelector("#selectVisible").onclick=selectVisibleForComparison;
+document.querySelector("#mapYieldMetric").onchange=event=>{mapYieldMetric=event.target.value;renderCapLegend();renderMapMarkers();updateMapAnalysisControls()};
 document.querySelector("#export").onclick=()=>downloadCsv(visible,"jreit-visible-properties.csv");
 document.querySelector("#exportSelected").onclick=()=>downloadCsv(comparedProperties(),"jreit-selected-properties.csv");
 map.on("zoomend",()=>{renderMapMarkers();updateMapAnalysisControls()});

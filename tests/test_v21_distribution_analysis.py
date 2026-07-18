@@ -65,7 +65,7 @@ console.log(JSON.stringify(segments.map(segment => segment.map(point => point.in
         css = (ROOT / "comparison-analysis.css").read_text(encoding="utf-8")
         renderer = (ROOT / "chart-renderer.js").read_text(encoding="utf-8")
 
-        self.assertIn("J-REIT Intelligence v0.21", html)
+        self.assertIn("J-REIT Intelligence v0.22", html)
         self.assertIn("PIPAnalysis.distributionSeries", javascript)
         self.assertIn("latestDistributionSnapshot", javascript)
         self.assertIn("PIPChart.drawRangeBand", javascript)

@@ -46,16 +46,18 @@ console.log(JSON.stringify({
         html = (ROOT / "index.html").read_text(encoding="utf-8")
         javascript = (ROOT / "app.js").read_text(encoding="utf-8")
         css = (ROOT / "map-analysis.css").read_text(encoding="utf-8")
-        self.assertIn("J-REIT Intelligence v0.21", html)
+        self.assertIn("J-REIT Intelligence v0.22", html)
         for control_id in (
             "filterMapBounds", "clearMapBounds", "selectVisible",
-            "mapActionStatus", "capLegend",
+            "mapActionStatus", "capLegend", "mapYieldMetric",
         ):
             self.assertIn(f'id="{control_id}"', html)
         self.assertLess(html.index("map-analysis.js"), html.index("app.js"))
         self.assertIn("PIPMapAnalysis.bandFor", javascript)
         self.assertIn("PIPMapAnalysis.boundsContain", javascript)
         self.assertIn("PIPMapAnalysis.selectIds", javascript)
+        self.assertIn('mapYieldMetric==="terminal_cap_rate"', javascript)
+        self.assertIn("property[mapYieldMetric]", javascript)
         self.assertIn('map.on("zoomend"', javascript)
         self.assertIn(".cap-marker", css)
         self.assertIn(".cap-legend", css)
